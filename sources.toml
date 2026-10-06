@@ -1,0 +1,11 @@
+# Packages must currently be installed in the CLI environment.
+[sources.drugstone]
+kind = "python"
+package = "drugstone"
+module = "drugstone"
+
+[sources.reactome]
+kind = "openapi"
+spec = "https://reactome.org/ContentService/v3/api-docs"
+# Explicitly pin the request destination; the spec cannot select another host.
+base_url = "https://reactome.org/ContentService"

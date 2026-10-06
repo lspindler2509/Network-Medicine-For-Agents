@@ -1,0 +1,16 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "network-medicine-for-agents"
+version = "0.1.0"
+description = "Generate agent-friendly CLI access to packages and OpenAPI services."
+requires-python = ">=3.11"
+dependencies = ["fire>=0.7,<0.8", "requests>=2.32,<3", "PyYAML>=6,<7"]
+
+[project.scripts]
+netmed = "netmed.cli:main"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/netmed"]
