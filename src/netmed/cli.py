@@ -48,22 +48,12 @@ Available sources (from the local catalog):
             catalog = load(self.catalog_path)
             sources = catalog["sources"]
             for name, source in sorted(sources.items()):
-                operations = source.get("discovery_metadata", {}).get("operations")
-                count_value = source.get(
-                    "operation_count",
-                    len(operations) if operations is not None else None,
-                )
-                count = (
-                    f"{count_value} discovered operations"
-                    if count_value is not None
-                    else "lazy discovery"
-                )
                 metadata = source.get("source_metadata", {})
                 title = metadata.get("title") or source.get("package") or name
                 summary = source.get("description", "").strip() or metadata.get(
                     "summary", ""
                 )
-                text += f"  {name:<16} {source['kind']} | {count}"
+                text += f"  {name:<16} {source['kind']}"
                 text += " | " + " ".join(title.split())
                 if summary:
                     text += " | " + " ".join(summary.split())

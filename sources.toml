@@ -16,7 +16,7 @@ spec = "https://reactome.org/ContentService/v3/api-docs"
 base_url = "https://reactome.org/ContentService"
 
 [sources.nedrex]
-description = "Query biomedical entities, protein interactions and drug–target associations from NeDRex."
+description = "Query biomedical entities, protein interactions and drug–target associations from NeDRex. This is a wrapper for the NeDRex API which takes care of pagination."
 kind = "python"
 package = "nedrex"
 module = "nedrex"

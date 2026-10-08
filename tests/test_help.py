@@ -135,7 +135,8 @@ class HelpTests(unittest.TestCase):
             text = out.getvalue()
             self.assertIn("example", text)
             self.assertIn("Example source", text)
-            self.assertIn("1 discovered operations", text)
+            self.assertNotIn("discovered operations", text)
+            self.assertNotIn("lazy discovery", text)
             self.assertIn("jobs [job-id]", text)
 
     def test_description_override_and_automatic_fallback(self):
