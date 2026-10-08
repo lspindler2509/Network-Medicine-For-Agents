@@ -46,7 +46,9 @@ try {
         $sha.Dispose()
     }
     if ($actual -ne $expected) { throw 'Checksum mismatch; installation unchanged.' }
-    [System.Reflection.Assembly]::Load('System.IO.Compression.FileSystem') | Out-Null
+    # Add-Type resolves the framework assembly name in Windows PowerShell 5.1
+    # as well as PowerShell 7; Assembly.Load with a short name does not.
+    Add-Type -AssemblyName System.IO.Compression.FileSystem
     [System.IO.Compression.ZipFile]::ExtractToDirectory($zip, $temp)
     if (-not (Test-Path (Join-Path $temp 'netmed\netmed.exe'))) { throw 'Archive does not contain netmed.exe.' }
     $destination = Join-Path $root $version
