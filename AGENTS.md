@@ -159,3 +159,7 @@ Initial supported native targets are darwin-arm64, windows-amd64 and linux-amd64
 Version-tag pushes run the build workflow and create a draft only after lint, formatting, unit tests and all three native builds succeed. Only the release job, gated on version tags or explicit manual release dispatch on main, has contents: write. Tag must match project.version. Do not push tags, create releases remotely or publish without user authorization; preparing the workflow does not authorize publishing.
 
 Manual workflow release dispatch on main may create a matching version tag at the tested commit and a draft; the default dispatch remains build-only. Existing tags pointing to another commit must be rejected.
+
+## User installation
+
+installers/install.sh and installers/install.ps1 install published OS/CPU bundles into versioned user directories, verify SHA-256 and configure command lookup. Keep existing version files for active jobs, never delete managed data, and never require Python or admin privileges to install. Default installation discovers the newest public release, including pre-releases; the --version/-Version parameter explicitly pins a release. Do not select drafts. Installer tests isolate all filesystem changes and disable real PATH modification; Windows runs in native CI.

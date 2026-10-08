@@ -13,6 +13,8 @@ The registry describes sources. Discovery produces routing/help metadata, not ge
 | `AGENTS.md` | Project purpose, architectural boundaries and instructions for contributors/agents. Not runtime tool documentation. |
 | `src/netmed/__init__.py` | Package marker. |
 | `src/netmed/__main__.py` | Source-installed `python -m netmed` entry point; calls CLI main. |
+| `installers/install.sh` | Published bundle installation and shell PATH setup for macOS arm64/Linux x64. |
+| `installers/install.ps1` | Published bundle installation and user PATH setup for Windows x64. |
 | `scripts/cli_entry.py` | PyInstaller entry point; calls the same CLI main and propagates its exit code. |
 
 ## Core and importers
@@ -94,6 +96,7 @@ Application code/resources stay in the installed bundle; mutable state uses NETM
 | `tests/test_objects.py` | Generic Pickle flow, metadata/selectors, mutation, callbacks and failure cleanup. |
 | `tests/test_restish.py` | Backend configuration/invocation and verified build-time native extraction. |
 | `tests/test_restish_integration.py` | Opt-in real HTTP capture tests for multipart/forms/arrays/refs/validation/pagination. |
+| `tests/test_installers.py` | Temporary bundle installation and checksum failure without changing real user PATH/data. |
 | `tests/test_build_locks.py` | Registry input, target and checksum consistency for versioned build locks. |
 | `tests/test_release.py` | Relocatable release resources, target/lock checks and release input restrictions. |
 | `tests/test_built_cli.py` | Opt-in frozen executable provisioning, objects, API help and detached completion/active/cancellation with developer tools absent from PATH. |

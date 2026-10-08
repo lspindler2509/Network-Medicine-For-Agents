@@ -4,6 +4,43 @@ Generate agent-friendly CLI access to Python packages and OpenAPI services from 
 
 ## Install and start
 
+Install with one command. macOS (Apple Silicon) or Linux (x64):
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/lspindler2509/Network-Medicine-For-Agents/main/installers/install.sh | sh
+```
+
+Windows (x64), in PowerShell:
+
+```powershell
+irm https://raw.githubusercontent.com/lspindler2509/Network-Medicine-For-Agents/main/installers/install.ps1 | iex
+```
+
+The installer selects the newest published release from GitHub’s release list (including pre-releases, excluding drafts), verifies its SHA-256 checksum and installs the entire bundle without administrator privileges. macOS/Linux uses `~/.local/share/netmed-cli/<version>` and `~/.local/bin/netmed`; Windows uses `%LOCALAPPDATA%\Programs\netmed\<version>`. It adds the command directory to your user shell/PATH configuration. Restart your terminal or agent, then run:
+
+```bash
+netmed --help
+netmed networkx path_graph 4 - number_of_nodes
+```
+
+These commands download and execute this project's installer. You can inspect the [shell script](installers/install.sh) or [PowerShell script](installers/install.ps1) first. `NETMED_INSTALL_DIR` overrides the application directory, and `NETMED_MODIFY_PATH=0` disables persistent PATH changes. Stop jobs before removing an installed version. No scientific package or runtime data is deleted by installation.
+
+To install a specific release on macOS/Linux:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/lspindler2509/Network-Medicine-For-Agents/main/installers/install.sh | sh -s -- --version v0.0.1
+```
+
+In PowerShell, pass the parameter to the downloaded script block:
+
+```powershell
+& ([scriptblock]::Create((irm https://raw.githubusercontent.com/lspindler2509/Network-Medicine-For-Agents/main/installers/install.ps1))) -Version v0.0.1
+```
+
+Omitting the parameter (or specifying `latest`) selects the newest published release.
+
+### Manual download
+
 Download a CLI bundle from [GitHub Releases](https://github.com/lspindler2509/Network-Medicine-For-Agents/releases). Open a release and choose the matching file under **Assets**:
 
 | System | Archive |
@@ -32,7 +69,7 @@ Add the absolute directory containing the executable to your user PATH to use `n
 
 You can give your agent this instruction:
 
-> Install netmed from https://github.com/lspindler2509/Network-Medicine-For-Agents/releases. Select the CLI archive for my operating system and CPU architecture, extract the entire bundle into a user-writable installation directory, add the executable's directory to my user PATH, and verify `netmed --help` and `netmed networkx path_graph 4 - number_of_nodes`. Tell me where the application and its managed data are stored.
+> Install netmed using the installer linked in https://github.com/lspindler2509/Network-Medicine-For-Agents#install-and-start for my operating system. Verify `netmed --help` and `netmed networkx path_graph 4 - number_of_nodes`. Tell me where the CLI and its managed data are stored.
 
 The application folder holds shipped code and executables; mutable environments, jobs, objects and history use a separate user-data directory, configurable once through `NETMED_DATA_DIR`. Development builds and dependency provisioning execute trusted package code; they are not security sandboxes.
 
