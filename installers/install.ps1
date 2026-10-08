@@ -36,8 +36,18 @@ try {
         $checksum = (Invoke-WebRequest -UseBasicParsing "$base/$archive.sha256").Content
     }
     $expected = ($checksum.Trim() -split '\s+')[0]
-    if ((Get-FileHash $zip -Algorithm SHA256).Hash -ne $expected) { throw 'Checksum mismatch; installation unchanged.' }
-    Expand-Archive $zip -DestinationPath $temp
+    # Use .NET directly, independent of PowerShell's optional hash/archive commands.
+    $sha = [System.Security.Cryptography.SHA256]::Create()
+    $stream = [System.IO.File]::OpenRead($zip)
+    try {
+        $actual = [BitConverter]::ToString($sha.ComputeHash($stream)).Replace('-', '')
+    } finally {
+        $stream.Dispose()
+        $sha.Dispose()
+    }
+    if ($actual -ne $expected) { throw 'Checksum mismatch; installation unchanged.' }
+    [System.Reflection.Assembly]::Load('System.IO.Compression.FileSystem') | Out-Null
+    [System.IO.Compression.ZipFile]::ExtractToDirectory($zip, $temp)
     if (-not (Test-Path (Join-Path $temp 'netmed\netmed.exe'))) { throw 'Archive does not contain netmed.exe.' }
     $destination = Join-Path $root $version
     if (Test-Path $destination) { throw "Already installed: $destination. Stop its jobs and remove it to reinstall." }

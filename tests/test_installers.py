@@ -89,6 +89,16 @@ class InstallerTests(unittest.TestCase):
 
     @unittest.skipUnless(os.name == "nt", "Windows installer needs Windows PowerShell")
     def test_powershell_install_and_checksum_failure(self):
+        self.check_windows_installer("powershell")
+
+    @unittest.skipUnless(
+        os.name == "nt" and shutil.which("pwsh"),
+        "PowerShell 7 test needs Windows and pwsh",
+    )
+    def test_pwsh_install_and_checksum_failure(self):
+        self.check_windows_installer("pwsh")
+
+    def check_windows_installer(self, executable):
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary)
             archive = root / "netmed-windows-amd64.zip"
@@ -109,7 +119,7 @@ class InstallerTests(unittest.TestCase):
             def install(*arguments):
                 return subprocess.run(
                     [
-                        "powershell",
+                        executable,
                         "-NoProfile",
                         "-ExecutionPolicy",
                         "Bypass",
