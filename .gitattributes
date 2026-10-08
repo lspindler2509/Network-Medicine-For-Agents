@@ -1,0 +1,2 @@
+# Lock checksums cover exact bytes; never convert their line endings on checkout.
+release-locks/** text eol=lf

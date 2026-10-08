@@ -2,12 +2,41 @@ import hashlib
 import json
 from pathlib import Path
 import tempfile
+import shutil
+import subprocess
 import unittest
 from unittest.mock import patch
 from netmed.building.locks import apply_lock, input_hash
 
 
 class BuildLockTests(unittest.TestCase):
+    @unittest.skipUnless(shutil.which("git"), "Git is needed for checkout integration")
+    def test_git_checkout_preserves_lock_bytes_with_windows_autocrlf(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            attributes = Path(__file__).resolve().parents[1] / ".gitattributes"
+            (root / ".gitattributes").write_bytes(attributes.read_bytes())
+            lock = root / "release-locks/windows-amd64/demo.txt"
+            lock.parent.mkdir(parents=True)
+            content = b"demo==1\n    --hash=sha256:abc\n"
+            lock.write_bytes(content)
+
+            def git(*arguments):
+                subprocess.run(
+                    ["git", *arguments],
+                    cwd=root,
+                    check=True,
+                    capture_output=True,
+                    text=True,
+                )
+
+            git("init")
+            git("config", "core.autocrlf", "true")
+            git("add", ".")
+            lock.unlink()
+            git("checkout", "--", "release-locks")
+            self.assertEqual(lock.read_bytes(), content)
+
     def test_target_inputs_and_checksum_must_match(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)

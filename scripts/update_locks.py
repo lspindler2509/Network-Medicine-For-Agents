@@ -100,6 +100,8 @@ def update_target(sources, target):
                 check=True,
                 stdout=subprocess.DEVNULL,
             )
+            # Keep exact-byte hashes stable across Windows and POSIX generators.
+            lock.write_bytes(lock.read_bytes().replace(b"\r\n", b"\n"))
             manifest["sources"][name] = {
                 "python": version,
                 "input_sha256": input_hash(source),
