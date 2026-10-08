@@ -1,11 +1,111 @@
-# Packages must currently be installed in the CLI environment.
+# Python packages are installed on demand in managed worker environments.
 [sources.drugstone]
+# optional description
+description = "Map gene identifiers, build interaction networks and run drug-prioritization tasks."
 kind = "python"
 package = "drugstone"
 module = "drugstone"
+version = "==1.0.2"
+python = "3.11"
 
 [sources.reactome]
+description = "Query biological pathways, reactions and participating proteins in Reactome."
 kind = "openapi"
 spec = "https://reactome.org/ContentService/v3/api-docs"
-# Explicitly pin the request destination; the spec cannot select another host.
+# Default Restish base URL; native request overrides remain available.
 base_url = "https://reactome.org/ContentService"
+
+[sources.nedrex]
+description = "Query biomedical entities, protein interactions and drug–target associations from NeDRex."
+kind = "python"
+package = "nedrex"
+module = "nedrex"
+version = "==0.1.4"
+python = "3.11"
+submodules = true
+setup = [{call = "config.set_url_base", args = ["https://api.nedrex.net/open"]}]
+
+[sources.netmedpy]
+description = "Calculate network localization, proximity and separation for disease genes and drug targets."
+kind = "python"
+package = "netmedpy"
+module = "netmedpy"
+version = "==0.2.0.1"
+python = "3.11"
+
+[sources.networkx]
+description = "Create graphs and calculate network topology, paths and centrality measures."
+kind = "python"
+package = "networkx"
+module = "networkx"
+version = "==3.7"
+python = "3.12"
+
+[sources.graphtools]
+description = "Construct similarity, nearest-neighbor and diffusion graphs from data."
+kind = "python"
+package = "graphtools"
+module = "graphtools"
+version = "==2.1.0"
+python = "3.11"
+submodules = true
+
+[sources.decoupler]
+description = "Infer biological activities from omics data and regulatory networks."
+kind = "python"
+package = "decoupler"
+module = "decoupler"
+version = "==2.2.0"
+python = "3.11"
+submodules = true
+discovery_timeout = 180
+
+[sources.gseapy]
+description = "Run gene-set enrichment analyses, including queries to Enrichr."
+kind = "python"
+package = "gseapy"
+module = "gseapy"
+version = "==1.3.1"
+python = "3.11"
+
+[sources.stringdb]
+description = "Query STRING protein associations through the third-party Python client."
+kind = "python"
+package = "stringdb"
+module = "stringdb"
+version = "==0.1.5"
+python = "3.11"
+
+[sources.ndex]
+description = "Search and retrieve public biological networks from NDEx."
+kind = "openapi"
+spec = "https://www.ndexbio.org/rest/openapi.json"
+base_url = "https://www.ndexbio.org"
+
+[sources.ols4]
+description = "Search biomedical ontologies, terms and hierarchies through EMBL-EBI OLS4."
+kind = "openapi"
+spec = "https://www.ebi.ac.uk/ols4/v3/api-docs"
+base_url = "https://www.ebi.ac.uk/ols4"
+
+[sources.nedrex_api]
+description = "Access current NeDRex API endpoints directly, including array filters and server-side tasks."
+kind = "openapi"
+spec = "https://api.nedrex.net/open/openapi.json"
+# The specification paths already contain /open.
+base_url = "https://api.nedrex.net"
+
+# Retain candidates without inventing a specification or a provider adapter.
+[sources.opentargets]
+kind = "graphql"
+enabled = false
+endpoint = "https://api.platform.opentargets.org/api/v4/graphql"
+disabled_reason = "GraphQL discovery/execution is not implemented; cannot import a GraphQL schema as OpenAPI."
+
+[sources.graph_tool]
+description = "Analyze graphs with the C++-backed graph-tool library."
+kind = "python"
+package = "graph-tool"
+module = "graph_tool"
+enabled = false
+disabled_reason = "Requires native dependencies and a Conda/Pixi or system installation; the current uv environment manager cannot provision graph-tool."

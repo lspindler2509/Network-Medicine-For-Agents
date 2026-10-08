@@ -1,0 +1,126 @@
+name: Build CLI
+on:
+  push:
+    branches: [main]
+    tags: ['v*']
+  pull_request:
+  workflow_dispatch:
+    inputs:
+      create_release:
+        description: 'Create a release draft after successful checks (main only)'
+        type: boolean
+        default: false
+permissions:
+  contents: read
+jobs:
+  quality:
+    runs-on: ubuntu-24.04
+    outputs:
+      release_tag: ${{ steps.version.outputs.tag }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13.3'
+      - uses: astral-sh/setup-uv@v6
+        with:
+          version: '0.12.23'
+      - run: uv sync --locked --group lint
+      - run: uv run --group lint ruff check .
+      - run: uv run --group lint ruff format --check .
+      - run: uv run python -m unittest discover -s tests -v
+      - name: Validate release version and target
+        id: version
+        env:
+          CREATE_RELEASE: ${{ inputs.create_release || false }}
+        run: |
+          uv run python - <<'PYCODE'
+          import os, pathlib, tomllib
+          tag = "v" + tomllib.loads(pathlib.Path("pyproject.toml").read_text())["project"]["version"]
+          ref = os.environ["GITHUB_REF"]
+          if ref.startswith("refs/tags/v"):
+              assert ref == "refs/tags/" + tag, "Release tag must match project version"
+          if os.environ["CREATE_RELEASE"] == "true":
+              assert ref == "refs/heads/main", "Manual release drafts must use main"
+          with open(os.environ["GITHUB_OUTPUT"], "a") as output:
+              output.write("tag=" + tag + "\n")
+          PYCODE
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-24.04
+            target: linux-amd64
+          - os: macos-15
+            target: darwin-arm64
+          - os: windows-2025
+            target: windows-amd64
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13.3'
+      - uses: astral-sh/setup-uv@v6
+        with:
+          version: '0.12.23'
+      - run: uv sync --locked --group build
+      - run: uv run --group build python scripts/build_cli.py --lock-directory release-locks/${{ matrix.target }}
+      - run: uv run python -m unittest discover -s tests -p test_built_cli.py -v
+        env:
+          NETMED_BINARY_TESTS: '1'
+      - uses: actions/upload-artifact@v4
+        with:
+          name: netmed-${{ runner.os }}-${{ runner.arch }}
+          if-no-files-found: error
+          path: |
+            dist/netmed-*.tar.gz
+            dist/netmed-*.zip
+            dist/netmed-*.sha256
+  release:
+    needs: [quality, build]
+    if: (github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')) || (github.event_name == 'workflow_dispatch' && inputs.create_release && github.ref == 'refs/heads/main')
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+    concurrency:
+      group: release-${{ github.ref }}
+      cancel-in-progress: false
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: netmed-*
+          path: release-assets
+          merge-multiple: true
+      - name: Verify all three archives and checksums
+        working-directory: release-assets
+        run: |
+          for archive in netmed-darwin-arm64.tar.gz netmed-linux-amd64.tar.gz netmed-windows-amd64.zip; do
+            test -f "$archive"
+            test -f "$archive.sha256"
+          done
+          sha256sum --check *.sha256
+      - name: Create draft release
+        working-directory: release-assets
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          RELEASE_TAG: ${{ needs.quality.outputs.release_tag }}
+        run: |
+          if git rev-parse --verify "refs/tags/$RELEASE_TAG" >/dev/null 2>&1; then
+            test "$(git rev-parse "$RELEASE_TAG^{commit}")" = "$GITHUB_SHA" || {
+              echo "Existing tag points to another commit; use a new project version."
+              exit 1
+            }
+          fi
+          gh release create "$RELEASE_TAG" netmed-*.tar.gz netmed-*.zip netmed-*.sha256 \
+            --target "$GITHUB_SHA" --draft --title "$RELEASE_TAG" --generate-notes

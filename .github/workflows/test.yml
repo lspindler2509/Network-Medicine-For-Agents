@@ -1,10 +1,33 @@
 name: Tests
 on: [push, pull_request]
+permissions:
+  contents: read
 jobs:
-  test:
-    runs-on: ubuntu-latest
+  lint:
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@v6
+        with:
+          version: "0.12.23"
+      - run: uv sync --locked --group lint
+      - run: uv run --group lint ruff check .
+      - run: uv run --group lint ruff format --check .
+  test:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    env:
+      NETMED_PROCESS_TESTS: "1"
+      NETMED_RESTISH_TESTS: "1"
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
       - uses: actions/setup-python@v5
         with:
           python-version: '3.11'

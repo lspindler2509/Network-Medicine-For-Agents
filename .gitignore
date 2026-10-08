@@ -4,3 +4,5 @@ __pycache__/
 .netmed/
 dist/
 .env
+
+.build/

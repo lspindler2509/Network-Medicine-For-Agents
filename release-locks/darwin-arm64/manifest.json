@@ -1,0 +1,45 @@
+{
+  "target": "darwin-arm64",
+  "sources": {
+    "drugstone": {
+      "python": "3.11.17",
+      "input_sha256": "562c7aaabba6ed9bdd540a93ffb695306d48d557664cc240150182a373b69959",
+      "sha256": "93e81a3d2ec5743c13f804de23b1d943cd6324f0dca145c604f91a536b89e956"
+    },
+    "nedrex": {
+      "python": "3.11.17",
+      "input_sha256": "4fb73e1587b4a1f7e6bfc4cce0072e8c0171086546fb3c6253f5e50cc8ea9c14",
+      "sha256": "985736318eee5373c7edf820436c29f17425517d632b79adaa5fe009b9d2d789"
+    },
+    "netmedpy": {
+      "python": "3.11.17",
+      "input_sha256": "5bfa6f10832fdb314bff96162829a147dcd6a21de82fa3a975c559a987fbbe5e",
+      "sha256": "ea09056b0fece24279f941008890df0b4bc91f59298524d63bc8c5a96b96379d"
+    },
+    "networkx": {
+      "python": "3.12.7",
+      "input_sha256": "6cdf550ca709b289d17f7d26beed88d70aab4ddf8218f5ac06699c9e8d477cfd",
+      "sha256": "49db08e79c7c492cf81db6f2ae5a851150e17b467289941c7b18de8620d9e18b"
+    },
+    "graphtools": {
+      "python": "3.11.17",
+      "input_sha256": "02a507f1c4bf029a5e75f18ecb3663ff4b071c017c5e8a535c86704cf0bb25c7",
+      "sha256": "1f92518af8967ac5279fd70785b2b3bda3a04068c4fc1200039827bf934144de"
+    },
+    "decoupler": {
+      "python": "3.11.17",
+      "input_sha256": "4b7e9f0a334bc2bf11c8ae9e051c30df1e3c527a94dd9a815703d6f2aef02c71",
+      "sha256": "ac37c5a61f5b60e41c5a77fe919a786ebbc4f7c019169a65c53f585d04d7b5c9"
+    },
+    "gseapy": {
+      "python": "3.11.17",
+      "input_sha256": "925fa1921c2cd74b00f0824619ba9d78916e7723ecfab1a46f80794d293806c1",
+      "sha256": "6be114ec98af9cdeea4dff06e5e00ab36984ceeca383a30da9c3dfa6b9b67546"
+    },
+    "stringdb": {
+      "python": "3.11.17",
+      "input_sha256": "d1be0b0b88187b5aa726a712c191242a471d8c0ce1b3c11657513f7451a3e3ae",
+      "sha256": "8c374c43ebb880b3fa009424594da8c6fd7cc74b886ae8a547641ba061ceb163"
+    }
+  }
+}
