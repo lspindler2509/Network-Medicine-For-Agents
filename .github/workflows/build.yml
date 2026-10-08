@@ -18,13 +18,13 @@ jobs:
     outputs:
       release_tag: ${{ steps.version.outputs.tag }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
         with:
           persist-credentials: false
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v6
         with:
           python-version: '3.13.3'
-      - uses: astral-sh/setup-uv@v6
+      - uses: astral-sh/setup-uv@v7
         with:
           version: '0.12.23'
       - run: uv sync --locked --group lint
@@ -60,13 +60,13 @@ jobs:
             target: windows-amd64
     runs-on: ${{ matrix.os }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
         with:
           persist-credentials: false
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v6
         with:
           python-version: '3.13.3'
-      - uses: astral-sh/setup-uv@v6
+      - uses: astral-sh/setup-uv@v7
         with:
           version: '0.12.23'
       - run: uv sync --locked --group build
@@ -74,7 +74,7 @@ jobs:
       - run: uv run python -m unittest discover -s tests -p test_built_cli.py -v
         env:
           NETMED_BINARY_TESTS: '1'
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v6
         with:
           name: netmed-${{ runner.os }}-${{ runner.arch }}
           if-no-files-found: error
@@ -92,11 +92,11 @@ jobs:
       group: release-${{ github.ref }}
       cancel-in-progress: false
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
         with:
           fetch-depth: 0
           persist-credentials: false
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v7
         with:
           pattern: netmed-*
           path: release-assets

@@ -159,8 +159,15 @@ def clean(directory, job=None, dry_run=False):
         if dry_run:
             result["would_remove"].append(details)
         else:
-            shutil.rmtree(path)
-            result["removed"].append(details)
+            try:
+                shutil.rmtree(path)
+            except OSError:
+                details["reason"] = (
+                    "Job files could not be removed; retry after the worker exits or check file permissions"
+                )
+                result["skipped"].append(details)
+            else:
+                result["removed"].append(details)
     return result
 
 

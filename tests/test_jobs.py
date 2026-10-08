@@ -20,9 +20,26 @@ from netmed.runtime.jobs import (
 from netmed.runtime.environments import UvEnvironmentManager
 from netmed.runtime.layout import data_directory
 from netmed.runtime.processes import process_environment
+from netmed.runtime import processes
 
 
 class JobTests(unittest.TestCase):
+    def test_cleanup_reports_locked_worker_log_without_crashing(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            identity = "a" * 32
+            job = root / identity
+            job.mkdir()
+            (job / "status.json").write_text('{"state":"completed","tool":"demo"}')
+            with patch(
+                "netmed.runtime.jobs.shutil.rmtree",
+                side_effect=PermissionError("file in use"),
+            ):
+                result = clean(root, identity)
+            self.assertEqual(result["removed"], [])
+            self.assertEqual(result["skipped"][0]["id"], identity)
+            self.assertTrue(job.exists())
+
     def test_native_results_are_not_read_back_and_saved_ids_are_recorded(self):
         from netmed.runtime.jobs import worker
 
@@ -104,29 +121,40 @@ class JobTests(unittest.TestCase):
                 job = launch(
                     catalog, ["demo", "dumps", '{"gene":"EGFR"}'], root / "jobs"
                 )
-            # A later catalog edit must not affect this job.
-            catalog.write_text("{}")
-            status_path = Path(job["directory"]) / "status.json"
-            deadline = time.monotonic() + 15
-            while time.monotonic() < deadline:
-                state = json.loads(status_path.read_text())
-                if state["state"] in ("completed", "failed"):
-                    break
-                time.sleep(0.05)
-            self.assertFalse((status_path.parent / "catalog.json").exists())
-            self.assertEqual(
-                json.loads((status_path.parent / "execution.json").read_text()),
-                {"sources": {"demo": {"kind": "python", "module": "json"}}},
-            )
-            self.assertEqual(state["tool"], "demo")
-            self.assertIn("created_at", state)
-            self.assertEqual(state["arguments"], ["demo", "dumps", '{"gene":"EGFR"}'])
-            self.assertEqual(
-                state["state"],
-                "completed",
-                (Path(job["directory"]) / "stderr.txt").read_text(),
-            )
-            self.assertIn("EGFR", (Path(job["directory"]) / "result.txt").read_text())
+            # Terminal status is written before the detached interpreter exits.
+            # Wait for our own Popen handle so Windows releases worker.log before
+            # TemporaryDirectory cleanup, also when an assertion fails.
+            worker_process = next(p for p in processes._workers if p.pid == job["pid"])
+            try:
+                # A later catalog edit must not affect this job.
+                catalog.write_text("{}")
+                status_path = Path(job["directory"]) / "status.json"
+                deadline = time.monotonic() + 15
+                while time.monotonic() < deadline:
+                    state = json.loads(status_path.read_text())
+                    if state["state"] in ("completed", "failed"):
+                        break
+                    time.sleep(0.05)
+                self.assertFalse((status_path.parent / "catalog.json").exists())
+                self.assertEqual(
+                    json.loads((status_path.parent / "execution.json").read_text()),
+                    {"sources": {"demo": {"kind": "python", "module": "json"}}},
+                )
+                self.assertEqual(state["tool"], "demo")
+                self.assertIn("created_at", state)
+                self.assertEqual(
+                    state["arguments"], ["demo", "dumps", '{"gene":"EGFR"}']
+                )
+                self.assertEqual(
+                    state["state"],
+                    "completed",
+                    (Path(job["directory"]) / "stderr.txt").read_text(),
+                )
+                self.assertIn(
+                    "EGFR", (Path(job["directory"]) / "result.txt").read_text()
+                )
+            finally:
+                worker_process.wait(timeout=15)
 
     @unittest.skipUnless(
         os.name == "posix", "Symlink fixture requires POSIX permissions"

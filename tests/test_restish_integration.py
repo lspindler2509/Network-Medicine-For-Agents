@@ -276,7 +276,7 @@ class RestishIntegrationTests(unittest.TestCase):
         cls.catalog = cls.root / "catalog.json"
         cls.catalog.write_text(json.dumps({"sources": {"capture": source}}))
 
-    def run_cli(self, *arguments, success=True):
+    def run_cli(self, *arguments, success=True, cwd=None):
         result = subprocess.run(
             [
                 sys.executable,
@@ -288,6 +288,7 @@ class RestishIntegrationTests(unittest.TestCase):
                 *arguments,
             ],
             env=self.env,
+            cwd=cwd,
             capture_output=True,
             text=True,
             timeout=30,
@@ -393,7 +394,12 @@ class RestishIntegrationTests(unittest.TestCase):
         file = self.root / "payload.bin"
         content = bytes(range(256))
         file.write_bytes(content)
-        record = json.loads(self.run_cli("send-raw", "@" + file.as_posix()).stdout)
+        # A whole-body Windows drive path contains a colon, which Restish's
+        # shorthand parser can interpret as a mapping. Use its portable relative
+        # @file syntax, with an explicit working directory.
+        record = json.loads(
+            self.run_cli("send-raw", "@" + file.name, cwd=self.root).stdout
+        )
         self.assertEqual(base64.b64decode(record["body"]), content)
 
     def test_external_ref_help_generation_and_default_validation_with_opt_out(self):
