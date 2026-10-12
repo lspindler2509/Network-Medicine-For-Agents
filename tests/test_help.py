@@ -222,3 +222,58 @@ class HelpTests(unittest.TestCase):
             ):
                 self.assertEqual(main(), 1)
             self.assertIn("Unknown source: missing", errors.getvalue())
+
+    def test_overview_hides_disabled_and_replaces_generic_api_title(self):
+        from netmed.cli import NetmedParser
+
+        with tempfile.TemporaryDirectory() as directory:
+            catalog = Path(directory) / "catalog.json"
+            catalog.write_text(
+                json.dumps(
+                    {
+                        "sources": {
+                            "proteins": {
+                                "kind": "openapi",
+                                "source_metadata": {"title": "OpenAPI definition"},
+                                "description": "Protein searches",
+                            }
+                        },
+                        "disabled_sources": {
+                            "not_ready": {"disabled_reason": "Not supported"}
+                        },
+                    }
+                )
+            )
+            parser = NetmedParser()
+            parser.catalog_path = str(catalog)
+            text = parser.format_help()
+            self.assertNotIn("OpenAPI definition", text)
+            self.assertNotIn("not_ready", text)
+            self.assertNotIn("Disabled sources (", text)
+            self.assertIn("Protein searches", text)
+            self.assertIn("including disabled sources", text)
+
+    def test_sources_retains_disabled_entries(self):
+        with (
+            tempfile.TemporaryDirectory() as directory,
+            patch.dict(os.environ, {"NETMED_DATA_DIR": directory}),
+        ):
+            catalog = Path(directory) / "catalog.json"
+            catalog.write_text(
+                json.dumps(
+                    {
+                        "sources": {},
+                        "disabled_sources": {
+                            "pending": {"disabled_reason": "Unsupported"}
+                        },
+                    }
+                )
+            )
+            with (
+                patch.object(
+                    sys, "argv", ["netmed", "--catalog", str(catalog), "sources"]
+                ),
+                contextlib.redirect_stdout(io.StringIO()) as output,
+            ):
+                self.assertEqual(main(), 0)
+            self.assertIn("pending", json.loads(output.getvalue())["disabled_sources"])

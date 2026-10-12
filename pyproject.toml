@@ -5,11 +5,16 @@ build-backend = "hatchling.build"
 [project]
 name = "network-medicine-for-agents"
 version = "0.0.1"
-description = "Generate agent-friendly CLI access to packages and OpenAPI services."
+description = "Generate agent-friendly CLI access to packages, OpenAPI and GraphQL services."
 license = "MIT"
 license-files = ["LICENSE"]
 requires-python = ">=3.11"
-dependencies = ["requests>=2.32,<3", "PyYAML>=6,<7", "psutil>=7.2,<8"]
+dependencies = [
+    "requests>=2.32,<3",
+    "PyYAML>=6,<7",
+    "psutil>=7.2,<8",
+    "graphql-core>=3.2.6,<3.3",
+]
 
 [project.scripts]
 netmed = "netmed.cli:main"

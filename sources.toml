@@ -95,12 +95,26 @@ spec = "https://api.nedrex.net/open/openapi.json"
 # The specification paths already contain /open.
 base_url = "https://api.nedrex.net"
 
-# Retain candidates without inventing a specification or a provider adapter.
+# Public GraphQL schemas are discovered via introspection; no provider adapters.
 [sources.opentargets]
 kind = "graphql"
-enabled = false
 endpoint = "https://api.platform.opentargets.org/api/v4/graphql"
-disabled_reason = "GraphQL discovery/execution is not implemented; cannot import a GraphQL schema as OpenAPI."
+description = "Explore targets, diseases, drugs, variants and target-disease evidence in Open Targets."
+
+[sources.dgidb]
+kind = "graphql"
+endpoint = "https://dgidb.org/api/graphql"
+description = "Find drug-gene interactions and their contributing database sources."
+
+[sources.gnomad]
+kind = "graphql"
+endpoint = "https://gnomad.broadinstitute.org/api"
+description = "Retrieve population variant frequencies and gene constraint metrics from gnomAD."
+
+[sources.pharos]
+kind = "graphql"
+endpoint = "https://pharos-api.ncats.io/graphql"
+description = "Explore Pharos/TCRD drug targets, target development levels, diseases and ligands."
 
 [sources.graph_tool]
 description = "Analyze graphs with the C++-backed graph-tool library."
@@ -109,3 +123,1589 @@ package = "graph-tool"
 module = "graph_tool"
 enabled = false
 disabled_reason = "Requires native dependencies and a Conda/Pixi or system installation; the current uv environment manager cannot provision graph-tool."
+
+# ToolUniverse candidates validated on 2026-10-09.
+# Evidence and remaining steps: docs/source-integration-validation.md
+# Active entries passed macOS interface checks with release locks.
+# Functional coverage is recorded separately; disabled entries retain their prerequisites.
+
+[sources.albumentations]
+kind = "python"
+package = "albumentations"
+module = "albumentations"
+python = "3.12"
+discovery_timeout = 120
+version = "==2.0.8"
+description = "Fast, flexible, and advanced augmentation library for deep learning, computer vision, and medical imaging. Albumentations offers a wide range of transformations for both 2D (images, masks, bboxes, keypoints) and 3D (volumes, volumetric masks, keypoints) data, with optimized performance and seamless "
+
+[sources.altair]
+kind = "python"
+package = "altair"
+module = "altair"
+python = "3.12"
+discovery_timeout = 120
+version = "==6.3.0"
+description = "Vega-Altair: A declarative statistical visualization library for Python."
+
+[sources.anndata]
+kind = "python"
+package = "anndata"
+module = "anndata"
+python = "3.12"
+discovery_timeout = 120
+version = "==0.13.4"
+description = "Annotated data."
+
+[sources.arboreto]
+kind = "python"
+package = "arboreto"
+module = "arboreto.algo"
+python = "3.12"
+discovery_timeout = 120
+version = "==0.1.6"
+description = "Scalable gene regulatory network inference using tree-based ensemble regressors"
+
+[sources.arxiv]
+kind = "python"
+package = "arxiv"
+module = "arxiv"
+python = "3.12"
+discovery_timeout = 120
+version = "==4.0.1"
+description = "Python wrapper for the arXiv API"
+
+[sources.ase]
+kind = "python"
+package = "ase"
+module = "ase"
+python = "3.12"
+discovery_timeout = 120
+version = "==3.29.0"
+description = "Atomic Simulation Environment"
+
+[sources.biopandas]
+kind = "python"
+package = "biopandas"
+module = "biopandas.pdb"
+python = "3.12"
+discovery_timeout = 120
+version = "==0.5.2"
+description = "Read, analyze and write PDB protein structures as pandas DataFrames."
+
+[sources.biopython]
+kind = "python"
+package = "biopython"
+module = "Bio.Seq"
+python = "3.12"
+discovery_timeout = 120
+version = "==1.88"
+description = "Freely available tools for computational molecular biology."
+
+[sources.bioservices]
+kind = "python"
+package = "bioservices"
+module = "bioservices"
+python = "3.12"
+discovery_timeout = 120
+version = "==1.16.0"
+description = "Access to Biological Web Services from Python"
+
+[sources.biotite]
+kind = "python"
+package = "biotite"
+module = "biotite.sequence"
+python = "3.12"
+discovery_timeout = 120
+version = "==1.7.1"
+description = "A comprehensive library for computational molecular biology"
+
+[sources.bokeh]
+kind = "python"
+package = "bokeh"
+module = "bokeh.colors"
+python = "3.12"
+discovery_timeout = 120
+version = "==3.10.0"
+description = "Interactive plots and applications in the browser from Python"
+
+[sources.brian2]
+kind = "python"
+package = "brian2"
+module = "brian2"
+python = "3.12"
+discovery_timeout = 120
+version = "==2.10.1"
+description = "A clock-driven simulator for spiking neural networks"
+
+[sources.catboost]
+kind = "python"
+package = "catboost"
+module = "catboost"
+python = "3.12"
+discovery_timeout = 120
+version = "==1.2.10"
+description = "CatBoost Python Package"
+
+[sources.cbioportal]
+kind = "openapi"
+spec = "https://www.cbioportal.org/api/v3/api-docs/public"
+base_url = "https://www.cbioportal.org"
+description = "Public cancer studies, patients and molecular data from cBioPortal."
+
+[sources.cellpose]
+kind = "python"
+package = "cellpose"
+module = "cellpose.models"
+python = "3.12"
+discovery_timeout = 120
+version = "==4.2.1.1"
+description = "anatomical segmentation algorithm"
+enabled = false
+disabled_reason = "Provisioning or discovery failed on darwin-arm64; see validation report."
+
+[sources.cellrank]
+kind = "python"
+package = "cellrank"
+module = "cellrank"
+python = "3.12"
+discovery_timeout = 120
+version = "==2.3.3"
+description = "CellRank: dynamics from multi-view single-cell data"
+enabled = false
+disabled_reason = "Provisioning or discovery failed on darwin-arm64; see validation report."
+
+[sources.cellxgene_census]
+kind = "python"
+package = "cellxgene-census"
+module = "cellxgene_census"
+python = "3.12"
+discovery_timeout = 120
+version = "==1.18.0"
+description = "API to facilitate the use of the CZ CELLxGENE Discover Census. For more information about the API and the project visit https://github.com/chanzuckerberg/cellxgene-census/"
+
+[sources.cftime]
+kind = "python"
+package = "cftime"
+module = "cftime"
+python = "3.12"
+discovery_timeout = 120
+version = "==1.6.6"
+description = "Time-handling functionality from netcdf4-python"
+
+[sources.chembl_webresource_client]
+kind = "python"
+package = "chembl-webresource-client"
+module = "chembl_webresource_client.new_client"
+python = "3.12"
+discovery_timeout = 120
+version = "==0.10.9"
+description = "Query ChEMBL molecules, drug targets, activities and assays through its native Python client."
+
+[sources.clair3]
+kind = "python"
+package = "clair3"
+module = "clair3"
+python = "3.12"
+discovery_timeout = 120
+enabled = false
+disabled_reason = "HTTP Error 404: Not Found"
+
+[sources.clinicaltrials]
+kind = "openapi"
+spec = "https://clinicaltrials.gov/api/oas/v2"
+base_url = "https://clinicaltrials.gov/api/v2"
+description = "Public study records and API version from ClinicalTrials.gov."
+
+[sources.cobra]
+kind = "python"
+package = "cobra"
+module = "cobra"
+python = "3.12"
+discovery_timeout = 120
+version = "==0.32.1"
+description = "COBRApy is a package for constraint-based modeling of metabolic networks."
+
+[sources.cooler]
+kind = "python"
+package = "cooler"
+module = "cooler"
+python = "3.12"
+discovery_timeout = 120
+version = "==0.10.4"
+description = "Sparse binary format for genomic interaction matrices."
+
+[sources.cryosparc_tools]
+kind = "python"
+package = "cryosparc-tools"
+module = "cryosparc"
+python = "3.12"
+discovery_timeout = 120
+version = "==5.0.3"
+description = "Toolkit for interfacing with CryoSPARC"
+
+[sources.cupy]
+kind = "python"
+package = "cupy"
+module = "cupy"
+python = "3.12"
+discovery_timeout = 120
+version = "==14.2.0"
+description = "CuPy: NumPy & SciPy for GPU"
+enabled = false
+disabled_reason = "CUDA runtime/GPU required; unsupported on the local Apple Silicon target."
+
+[sources.cyvcf2]
+kind = "python"
+package = "cyvcf2"
+module = "cyvcf2"
+python = "3.12"
+discovery_timeout = 120
+version = "==0.34.0"
+description = "fast vcf parsing with cython + htslib"
+
+[sources.dask]
+kind = "python"
+package = "dask"
+module = "dask"
+python = "3.12"
+discovery_timeout = 120
+version = "==2026.8.0"
+description = "Parallel PyData with Task Scheduling"
+
+[sources.datamol]
+kind = "python"
+package = "datamol"
+module = "datamol.mol"
+python = "3.12"
+discovery_timeout = 120
+version = "==0.13.0"
+description = "A python library to work with molecules. Built on top of RDKit."
+
+[sources.datashader]
+kind = "python"
+package = "datashader"
+module = "datashader"
+python = "3.12"
+discovery_timeout = 120
+version = "==0.19.1"
+description = "Data visualization toolchain based on aggregating into a grid"
+
+[sources.deepchem]
+kind = "python"
+package = "deepchem"
+module = "deepchem"
+python = "3.12"
+discovery_timeout = 120
+version = "==2.8.0"
+description = "Deep learning models for drug discovery, quantum chemistry, and the life sciences."
+enabled = false
+disabled_reason = "Provisioning or discovery failed on darwin-arm64; see validation report."
+
+[sources.deeppurpose]
+kind = "python"
+package = "deeppurpose"
+module = "DeepPurpose.utils"
+python = "3.12"
+discovery_timeout = 120
+version = "==0.1.5"
+description = "a Deep Learning Based Toolkit for Drug Discovery"
+enabled = false
+disabled_reason = "build failed after module/signature adjustment"
+
+[sources.deeptools]
+kind = "python"
+package = "deeptools"
+module = "deeptools.utilities"
+python = "3.12"
+discovery_timeout = 120
+version = "==4.0.0"
+description = "Useful tools for exploring deep sequencing data."
+
+[sources.deepxde]
+kind = "python"
+package = "deepxde"
+module = "deepxde"
+python = "3.12"
+discovery_timeout = 120
+version = "==1.15.0"
+dependencies = ["torch==2.8.0"]
+description = "A library for scientific machine learning"
+
+[sources.dendropy]
+kind = "python"
+package = "dendropy"
+module = "dendropy"
+python = "3.12"
+discovery_timeout = 120
+version = "==5.1.0"
+description = "A Python library for phylogenetics and phylogenetic computing: reading, writing, simulation, processing and manipulation of phylogenetic trees (phylogenies) and characters."
+
+[sources.descriptastorus]
+kind = "python"
+package = "descriptastorus"
+module = "descriptastorus"
+python = "3.12"
+discovery_timeout = 120
+version = "==2.8.0"
+description = "Descriptor creation, storage and molecular file indexing"
+enabled = false
+disabled_reason = "Provisioning or discovery failed on darwin-arm64; see validation report."
+
+[sources.diffdock]
+kind = "python"
+package = "diffdock"
+module = "diffdock"
+python = "3.12"
+discovery_timeout = 120
+enabled = false
+disabled_reason = "HTTP Error 404: Not Found"
+
+[sources.dscribe]
+kind = "python"
+package = "dscribe"
+module = "dscribe"
+python = "3.12"
+discovery_timeout = 120
+version = "==2.1.2"
+description = "A Python package for creating feature transformations in applications of machine learning to materials science."
+
+[sources.elephant]
+kind = "python"
+package = "elephant"
+module = "elephant"
+python = "3.12"
+discovery_timeout = 120
+version = "==1.2.1"
+description = "Elephant (Electrophysiology Analysis Toolkit) is an open-source library for the analysis of electrophysiological data in Python."
+enabled = false
+disabled_reason = "No public callable operations discovered at configured module."
+
+[sources.episcanpy]
+kind = "python"
+package = "episcanpy"
+module = "episcanpy"
+python = "3.12"
+discovery_timeout = 120
+version = "==0.4.0"
+description = "Epigenomics Single-Cell Analysis in Python."
+enabled = false
+disabled_reason = "Provisioning or discovery failed on darwin-arm64; see validation report."
+
+[sources.ete3]
+kind = "python"
+package = "ete3"
+module = "ete3"
+python = "3.12"
+discovery_timeout = 120
+version = "==3.1.3"
+dependencies = ["six"]
+description = "A Python Environment for (phylogenetic) Tree Exploration"
+enabled = false
+disabled_reason = "build failed after module/signature adjustment"
+
+[sources.faiss_cpu]
+kind = "python"
+package = "faiss-cpu"
+module = "faiss"
+python = "3.12"
+discovery_timeout = 120
+version = "==1.12.0"
+description = "A library for efficient similarity search and clustering of dense vectors."
+
+[sources.fanc]
+kind = "python"
+package = "fanc"
+module = "fanc"
+python = "3.12"
+discovery_timeout = 120
+version = "==0.9.28"
+description = "Framework for the ANalysis of C-data."
+
+[sources.flask]
+kind = "python"
+package = "flask"
+module = "flask"
+python = "3.12"
+discovery_timeout = 120
+version = "==3.1.3"
+description = "A simple framework for building complex web applications."
+enabled = false
+disabled_reason = "Provisioning or discovery failed on darwin-arm64; see validation report."
+
+[sources.flowio]
+kind = "python"
+package = "FlowIO"
+module = "flowio"
+python = "3.12"
+discovery_timeout = 120
+version = "==1.4.0"
+description = "FlowIO is a Python library for reading / writing Flow Cytometry Standard (FCS) files"
+
+[sources.flowkit]
+kind = "python"
+package = "flowkit"
+module = "flowkit"
+python = "3.12"
+discovery_timeout = 120
+version = "==1.3.2"
+description = "Flow Cytometry Toolkit"
+
+[sources.flowutils]
+kind = "python"
+package = "FlowUtils"
+module = "flowutils.transforms"
+python = "3.12"
+discovery_timeout = 120
+version = "==1.2.2"
+description = "Flow Cytometry Standard Utilities"
+
+[sources.freesasa]
+kind = "python"
+package = "freesasa"
+module = "freesasa"
+python = "3.12"
+discovery_timeout = 120
+version = "==2.2.1"
+description = "Calculate solvent accessible surface areas of proteins"
+
+[sources.geopandas]
+kind = "python"
+package = "geopandas"
+module = "geopandas"
+python = "3.12"
+discovery_timeout = 120
+version = "==1.2.0"
+description = "Geographic pandas extensions"
+
+[sources.gget]
+kind = "python"
+package = "gget"
+module = "gget"
+python = "3.12"
+discovery_timeout = 120
+version = "==0.30.8"
+description = "Efficient querying of genomic databases."
+
+[sources.h5py]
+kind = "python"
+package = "h5py"
+module = "h5py"
+python = "3.12"
+discovery_timeout = 120
+version = "==3.16.0"
+description = "Read and write HDF5 files from Python"
+
+[sources.harmony_pytorch]
+kind = "python"
+package = "harmony-pytorch"
+module = "harmony"
+python = "3.12"
+discovery_timeout = 120
+version = "==0.1.8"
+description = "Pytorch implementation of Harmony algorithm on single-cell sequencing data integration"
+enabled = false
+disabled_reason = "Provisioning or discovery failed on darwin-arm64; see validation report."
+
+[sources.hmmlearn]
+kind = "python"
+package = "hmmlearn"
+module = "hmmlearn.hmm"
+python = "3.12"
+discovery_timeout = 120
+version = "==0.3.3"
+description = "Hidden Markov Models in Python with scikit-learn like API"
+
+[sources.holoviews]
+kind = "python"
+package = "holoviews"
+module = "holoviews"
+python = "3.12"
+discovery_timeout = 120
+version = "==1.23.2"
+description = "A high-level plotting API for the PyData ecosystem built on HoloViews."
+
+[sources.htmd]
+kind = "python"
+package = "htmd"
+module = "htmd"
+python = "3.12"
+discovery_timeout = 120
+version = "==6.1.0"
+description = "Write Markdown and Jinja2 templates to create a website"
+enabled = false
+disabled_reason = "Provisioning or discovery failed on darwin-arm64; see validation report."
+
+[sources.igraph]
+kind = "python"
+package = "igraph"
+module = "igraph"
+python = "3.12"
+discovery_timeout = 120
+version = "==1.0.0"
+description = "High performance graph data structures and algorithms"
+
+[sources.imageio]
+kind = "python"
+package = "imageio"
+module = "imageio"
+python = "3.12"
+discovery_timeout = 120
+version = "==2.38.1"
+description = "Read and write images and video across all major formats. Supports scientific and volumetric data."
+
+[sources.imbalanced_learn]
+kind = "python"
+package = "imbalanced-learn"
+module = "imblearn"
+python = "3.12"
+discovery_timeout = 120
+version = "==0.14.2"
+description = "Toolbox for imbalanced dataset in machine learning"
+
+[sources.jcvi]
+kind = "python"
+package = "jcvi"
+module = "jcvi"
+python = "3.12"
+discovery_timeout = 120
+version = "==1.6.7"
+description = "Python utility libraries on genome assembly, annotation and comparative genomics"
+
+[sources.joblib]
+kind = "python"
+package = "joblib"
+module = "joblib"
+python = "3.12"
+discovery_timeout = 120
+version = "==1.6.0"
+description = "Lightweight pipelining with Python functions"
+
+[sources.khmer]
+kind = "python"
+package = "khmer"
+module = "khmer"
+python = "3.12"
+discovery_timeout = 120
+version = "==2.1.1"
+description = "khmer k-mer counting library"
+enabled = false
+disabled_reason = "Provisioning or discovery failed on darwin-arm64; see validation report."
+
+[sources.kipoiseq]
+kind = "python"
+package = "kipoiseq"
+module = "kipoiseq"
+python = "3.12"
+discovery_timeout = 120
+version = "==0.7.1"
+description = "kipoiseq: sequence-based data-loaders for Kipoi"
+
+[sources.lifelines]
+kind = "python"
+package = "lifelines"
+module = "lifelines"
+python = "3.12"
+discovery_timeout = 120
+version = "==0.30.3"
+description = "Survival analysis in Python, including Kaplan Meier, Nelson Aalen and regression"
+
+[sources.lightgbm]
+kind = "python"
+package = "lightgbm"
+module = "lightgbm"
+python = "3.12"
+discovery_timeout = 120
+version = "==4.7.0"
+description = "LightGBM Python-package"
+
+[sources.loompy]
+kind = "python"
+package = "loompy"
+module = "loompy"
+python = "3.12"
+discovery_timeout = 120
+version = "==3.0.8"
+description = "Work with Loom files for single-cell RNA-seq data"
+
+[sources.mageck]
+kind = "python"
+package = "mageck"
+module = "mageck"
+python = "3.12"
+discovery_timeout = 120
+enabled = false
+disabled_reason = "HTTP Error 404: Not Found"
+
+[sources.marsilea]
+kind = "python"
+package = "marsilea"
+module = "marsilea"
+python = "3.12"
+discovery_timeout = 120
+version = "==0.8.1"
+description = "Declarative creation of composable visualizations"
+
+[sources.matplotlib]
+kind = "python"
+package = "matplotlib"
+module = "matplotlib"
+python = "3.12"
+discovery_timeout = 120
+version = "==3.11.2"
+description = "Python plotting package"
+
+[sources.mdanalysis]
+kind = "python"
+package = "MDAnalysis"
+module = "MDAnalysis.lib.distances"
+python = "3.12"
+discovery_timeout = 120
+version = "==2.10.0"
+description = "An object-oriented toolkit to analyze molecular dynamics trajectories."
+
+[sources.mdtraj]
+kind = "python"
+package = "mdtraj"
+module = "mdtraj"
+python = "3.12"
+discovery_timeout = 120
+version = "==1.11.2"
+description = "MDTraj: A modern, open library for the analysis of molecular dynamics trajectories"
+
+[sources.mne]
+kind = "python"
+package = "mne"
+module = "mne"
+python = "3.12"
+discovery_timeout = 120
+version = "==1.13.2"
+description = "MNE-Python is an open-source Python package for exploring, visualizing, and analyzing human neurophysiological data. It provides methods for data input/output, preprocessing, visualization, source estimation, time-frequency analysis, machine learning, and statistics."
+
+[sources.molfeat]
+kind = "python"
+package = "molfeat"
+module = "molfeat.calc"
+python = "3.12"
+discovery_timeout = 120
+version = "==1.0.0"
+description = "molfeat - the hub for all your molecular featurizers"
+enabled = false
+disabled_reason = "Repeated macOS discovery timeout with release-locked dependencies; investigate import/discovery before enabling."
+
+[sources.molvs]
+kind = "python"
+package = "molvs"
+module = "molvs"
+python = "3.12"
+discovery_timeout = 120
+version = "==0.1.1"
+dependencies = ["rdkit==2026.3.6"]
+description = "Molecule Validation and Standardization"
+
+[sources.mordred]
+kind = "python"
+package = "mordred"
+module = "mordred"
+python = "3.12"
+discovery_timeout = 120
+version = "==1.2.0"
+dependencies = ["setuptools"]
+description = "molecular descriptor calculator"
+enabled = false
+disabled_reason = "build failed after module/signature adjustment"
+
+[sources.msprime]
+kind = "python"
+package = "msprime"
+module = "msprime"
+python = "3.12"
+discovery_timeout = 120
+version = "==1.4.4"
+description = "Simulate genealogical trees and genomic sequence data using population genetic models"
+
+[sources.mudata]
+kind = "python"
+package = "mudata"
+module = "mudata"
+python = "3.12"
+discovery_timeout = 120
+version = "==0.4.1"
+description = "Multimodal data"
+
+[sources.neo]
+kind = "python"
+package = "neo"
+module = "neo"
+python = "3.12"
+discovery_timeout = 120
+version = "==0.14.5"
+description = "Neo is a package for representing electrophysiology data in Python, together with support for reading a wide range of neurophysiology file formats"
+
+[sources.netcdf4]
+kind = "python"
+package = "netcdf4"
+module = "netCDF4"
+python = "3.12"
+discovery_timeout = 120
+version = "==1.7.4"
+description = "Provides an object-oriented python interface to the netCDF version 4 library"
+
+[sources.nglview]
+kind = "python"
+package = "nglview"
+module = "nglview"
+python = "3.12"
+discovery_timeout = 120
+version = "==4.0.1"
+description = "IPython widget to interactively view molecular structures and trajectories."
+
+[sources.nilearn]
+kind = "python"
+package = "nilearn"
+module = "nilearn.maskers"
+python = "3.12"
+discovery_timeout = 120
+version = "==0.14.1"
+description = "Statistical learning for neuroimaging in Python"
+
+[sources.numba]
+kind = "python"
+package = "numba"
+module = "numba"
+python = "3.12"
+discovery_timeout = 120
+version = "==0.68.0"
+description = "compiling Python code using LLVM"
+
+[sources.numpy]
+kind = "python"
+package = "numpy"
+module = "numpy"
+python = "3.12"
+discovery_timeout = 120
+version = "==2.5.3"
+description = "Fundamental package for array computing in Python"
+
+[sources.openbabel]
+kind = "python"
+package = "openbabel"
+module = "openbabel.openbabel"
+python = "3.12"
+discovery_timeout = 120
+version = "==3.2.1"
+description = "Python interface to the Open Babel chemistry library"
+
+[sources.openchem]
+kind = "python"
+package = "openchem"
+module = "openchem"
+python = "3.12"
+discovery_timeout = 120
+enabled = false
+disabled_reason = "HTTP Error 404: Not Found"
+
+[sources.opencv_python]
+kind = "python"
+package = "opencv-python"
+module = "cv2"
+python = "3.12"
+discovery_timeout = 120
+version = "==5.0.0.93"
+discovery = "lazy"
+description = "Wrapper package for OpenCV python bindings."
+
+[sources.openmm]
+kind = "python"
+package = "openmm"
+module = "openmm"
+python = "3.12"
+discovery_timeout = 120
+version = "==8.3.1"
+description = "Python wrapper for OpenMM (a C++ MD package)"
+
+[sources.optlang]
+kind = "python"
+package = "optlang"
+module = "optlang"
+python = "3.12"
+discovery_timeout = 120
+version = "==1.9.1"
+description = "Formulate optimization problems using sympy expressions and solve them using interfaces to third-party optimization software (e.g. GLPK)."
+
+[sources.optuna]
+kind = "python"
+package = "optuna"
+module = "optuna"
+python = "3.12"
+discovery_timeout = 120
+version = "==5.0.0"
+description = "A hyperparameter optimization framework"
+
+[sources.palantir]
+kind = "python"
+package = "palantir"
+module = "palantir"
+python = "3.12"
+discovery_timeout = 120
+version = "==1.4.5"
+description = "Palantir for modeling continuous cell state and cell fate choices in single cell data"
+enabled = false
+disabled_reason = "Provisioning or discovery failed on darwin-arm64; see validation report."
+
+[sources.pandas]
+kind = "python"
+package = "pandas"
+module = "pandas"
+python = "3.12"
+discovery_timeout = 120
+version = "==3.0.6"
+description = "Powerful data structures for data analysis, time series, and statistics"
+
+[sources.patsy]
+kind = "python"
+package = "patsy"
+module = "patsy"
+python = "3.12"
+discovery_timeout = 120
+version = "==1.0.3"
+description = "A Python package for describing statistical models and for building design matrices."
+
+[sources.pdbfixer]
+kind = "python"
+package = "pdbfixer"
+module = "pdbfixer"
+python = "3.12"
+discovery_timeout = 120
+version = "==1.12.0"
+description = "pdbfixer: Fixes problems in PDB files"
+enabled = false
+disabled_reason = "Native OpenMM/distribution prerequisites require separate validation."
+
+[sources.pillow]
+kind = "python"
+package = "pillow"
+module = "PIL.Image"
+python = "3.12"
+discovery_timeout = 120
+version = "==12.3.0"
+description = "Python Imaging Library (fork)"
+
+[sources.plantcv]
+kind = "python"
+package = "plantcv"
+module = "plantcv.plantcv"
+python = "3.12"
+discovery_timeout = 120
+version = "==4.11.3"
+description = "PlantCV: Plant phenotyping with computer vision"
+
+[sources.plip]
+kind = "python"
+package = "plip"
+module = "plip"
+python = "3.12"
+discovery_timeout = 120
+version = "==3.0.1"
+description = "PLIP - Fully automated protein-ligand interaction profiler"
+enabled = false
+disabled_reason = "Requires separately provisioned OpenBabel system runtime; no verified portable setup."
+
+[sources.plotly]
+kind = "python"
+package = "plotly"
+module = "plotly.graph_objects"
+python = "3.12"
+discovery_timeout = 120
+version = "==7.1.0"
+discovery = "lazy"
+description = "An open-source interactive data visualization library for Python"
+
+[sources.poretools]
+kind = "python"
+package = "poretools"
+module = "poretools"
+python = "3.12"
+discovery_timeout = 120
+version = "==0.6.0"
+description = "A toolset for working with nanopore sequencing data"
+enabled = false
+disabled_reason = "Provisioning or discovery failed on darwin-arm64; see validation report."
+
+[sources.prody]
+kind = "python"
+package = "prody"
+module = "prody"
+python = "3.12"
+discovery_timeout = 120
+version = "==2.6.1"
+description = "A Python Package for Protein Dynamics Analysis"
+
+[sources.pubchempy]
+kind = "python"
+package = "pubchempy"
+module = "pubchempy"
+python = "3.12"
+discovery_timeout = 120
+version = "==1.0.5"
+description = "A simple Python wrapper around the PubChem PUG REST API."
+
+[sources.pybedtools]
+kind = "python"
+package = "pybedtools"
+module = "pybedtools"
+python = "3.12"
+discovery_timeout = 120
+version = "==0.12.1"
+description = "Wrapper around BEDTools for bioinformatics work"
+enabled = false
+disabled_reason = "Requires external bedtools executable; not provided by uv."
+
+[sources.pybigwig]
+kind = "python"
+package = "pyBigWig"
+module = "pyBigWig"
+python = "3.12"
+discovery_timeout = 120
+version = "==0.3.26"
+dependencies = ["numpy<2"]
+description = "A package for accessing bigWig files using libBigWig"
+
+[sources.pydeseq2]
+kind = "python"
+package = "pydeseq2"
+module = "pydeseq2.dds"
+python = "3.12"
+discovery_timeout = 120
+version = "==0.5.4"
+description = "A python implementation of DESeq2."
+
+[sources.pyensembl]
+kind = "python"
+package = "pyensembl"
+module = "pyensembl"
+python = "3.12"
+discovery_timeout = 120
+version = "==2.27.0"
+description = "Python interface to Ensembl reference genome metadata"
+
+[sources.pyephem]
+kind = "python"
+package = "pyephem"
+module = "ephem"
+python = "3.12"
+discovery_timeout = 120
+version = "==9.99"
+description = "Compute celestial positions, ephemerides and rise/set times using ephem."
+
+[sources.pyfaidx]
+kind = "python"
+package = "pyfaidx"
+module = "pyfaidx"
+python = "3.12"
+discovery_timeout = 120
+version = "==0.9.0.4"
+description = "pyfaidx: efficient pythonic random access to fasta subsequences"
+
+[sources.pyfasta]
+kind = "python"
+package = "pyfasta"
+module = "pyfasta"
+python = "3.12"
+discovery_timeout = 120
+version = "==0.5.2"
+description = "fast, memory-efficient, pythonic (and command-line) access to fasta sequence files"
+enabled = false
+disabled_reason = "Provisioning or discovery failed on darwin-arm64; see validation report."
+
+[sources.pykalman]
+kind = "python"
+package = "pykalman"
+module = "pykalman"
+python = "3.12"
+discovery_timeout = 120
+version = "==0.11.2"
+description = "An implementation of the Kalman Filter, Kalman Smoother, and EM algorithm in Python"
+
+[sources.pyliftover]
+kind = "python"
+package = "pyliftover"
+module = "pyliftover"
+python = "3.12"
+discovery_timeout = 120
+version = "==0.4.1"
+description = "Pure-python implementation of UCSC ``liftOver`` genome coordinate conversion."
+
+[sources.pymassspec]
+kind = "python"
+package = "PyMassSpec"
+module = "pyms.Spectrum"
+python = "3.12"
+discovery_timeout = 120
+version = "==2.7.0.post1"
+description = "Python Toolkit for Mass Spectrometry"
+
+[sources.pymed]
+kind = "python"
+package = "pymed"
+module = "pymed"
+python = "3.12"
+discovery_timeout = 120
+version = "==0.8.9"
+description = "Python library for access to PubMed"
+
+[sources.pymzml]
+kind = "python"
+package = "pymzml"
+module = "pymzml.run"
+python = "3.13.3"
+discovery_timeout = 120
+version = "==2.7.0"
+description = "high-throughput mzML parsing"
+
+[sources.pyranges]
+kind = "python"
+package = "pyranges"
+module = "pyranges"
+python = "3.12"
+discovery_timeout = 120
+version = "==0.1.4"
+description = "GenomicRanges for Python."
+
+[sources.pyrosetta_installer]
+kind = "python"
+package = "pyrosetta-installer"
+module = "pyrosetta"
+python = "3.12"
+discovery_timeout = 120
+version = "==0.1.2"
+description = "Download PyRosetta wheel package from PyRosetta.org and install it"
+enabled = false
+disabled_reason = "Installer does not provide the separately licensed PyRosetta runtime."
+
+[sources.pysam]
+kind = "python"
+package = "pysam"
+module = "pysam"
+python = "3.12"
+discovery_timeout = 120
+version = "==0.24.1"
+description = "Package for reading, manipulating, and writing genomic data"
+
+[sources.pyscenic]
+kind = "python"
+package = "pyscenic"
+module = "pyscenic"
+python = "3.12"
+discovery_timeout = 120
+version = "==0.12.1"
+description = "Python implementation of the SCENIC pipeline for transcription factor inference from single-cell transcriptomics experiments."
+
+[sources.pyscf]
+kind = "python"
+package = "pyscf"
+module = "pyscf.gto"
+python = "3.12"
+discovery_timeout = 120
+version = "==2.14.0"
+description = "PySCF: Python-based Simulations of Chemistry Framework"
+
+[sources.pyscreener]
+kind = "python"
+package = "pyscreener"
+module = "pyscreener"
+python = "3.12"
+discovery_timeout = 120
+version = "==1.2.3"
+description = "pythonic interface to virtual screening software"
+enabled = false
+disabled_reason = "Requires separately configured docking executables."
+
+[sources.pytdc]
+kind = "python"
+package = "pytdc"
+module = "tdc"
+python = "3.12"
+discovery_timeout = 120
+version = "==1.1.15"
+description = "Therapeutics Commons"
+enabled = false
+disabled_reason = "Provisioning or discovery failed on darwin-arm64; see validation report."
+
+[sources.python_libsbml]
+kind = "python"
+package = "python-libsbml"
+module = "libsbml"
+python = "3.12"
+discovery_timeout = 120
+version = "==5.21.2"
+description = "LibSBML Python API"
+
+[sources.pyvcf]
+kind = "python"
+package = "pyvcf"
+module = "vcf"
+python = "3.12"
+discovery_timeout = 120
+version = "==0.6.8"
+description = "Variant Call Format (VCF) parser for Python"
+enabled = false
+disabled_reason = "Provisioning or discovery failed on darwin-arm64; see validation report."
+
+[sources.pyvis]
+kind = "python"
+package = "pyvis"
+module = "pyvis.network"
+python = "3.12"
+discovery_timeout = 120
+version = "==0.3.2"
+description = "A Python network graph visualization library"
+
+[sources.rasterio]
+kind = "python"
+package = "rasterio"
+module = "rasterio"
+python = "3.12"
+discovery_timeout = 120
+version = "==1.5.2"
+description = "Fast and direct raster I/O for use with NumPy"
+
+[sources.rdkit]
+kind = "python"
+package = "rdkit"
+module = "rdkit.Chem.Descriptors"
+python = "3.12"
+version = "==2026.3.6"
+discovery_timeout = 120
+description = "A collection of chemoinformatics and machine-learning software written in C++ and Python"
+
+[sources.requests]
+kind = "python"
+package = "requests"
+module = "requests"
+python = "3.12"
+discovery_timeout = 120
+version = "==2.34.2"
+description = "Python HTTP for Humans."
+
+[sources.ruptures]
+kind = "python"
+package = "ruptures"
+module = "ruptures"
+python = "3.12"
+discovery_timeout = 120
+version = "==1.1.10"
+description = "Change point detection for signals in Python."
+
+[sources.scanorama]
+kind = "python"
+package = "scanorama"
+module = "scanorama"
+python = "3.12"
+discovery_timeout = 120
+version = "==1.7.4"
+description = "Panoramic stitching of heterogeneous single cell transcriptomic data"
+
+[sources.scanpy]
+kind = "python"
+package = "scanpy"
+module = "scanpy"
+python = "3.12"
+discovery_timeout = 120
+version = "==1.12.4"
+description = "Single-Cell Analysis in Python."
+
+[sources.schnetpack]
+kind = "python"
+package = "schnetpack"
+module = "schnetpack"
+python = "3.12"
+discovery_timeout = 120
+version = "==2.2.0"
+description = "SchNetPack - Deep Neural Networks for Atomistic Systems"
+enabled = false
+disabled_reason = "Provisioning or discovery failed on darwin-arm64; see validation report."
+
+[sources.scholarly]
+kind = "python"
+package = "scholarly"
+module = "scholarly"
+python = "3.12"
+discovery_timeout = 120
+version = "==1.7.11"
+dependencies = ["bibtexparser<2"]
+description = "Simple access to Google Scholar authors and citations"
+
+[sources.scikit_bio]
+kind = "python"
+package = "scikit-bio"
+module = "skbio"
+python = "3.12"
+discovery_timeout = 120
+version = "==0.7.4"
+description = "Data structures, algorithms and educational resources for bioinformatics."
+
+[sources.scikit_image]
+kind = "python"
+package = "scikit-image"
+module = "skimage.color"
+python = "3.12"
+discovery_timeout = 120
+version = "==0.26.0"
+discovery = "lazy"
+description = "Image processing in Python"
+
+[sources.scikit_learn]
+kind = "python"
+package = "scikit-learn"
+module = "sklearn"
+python = "3.12"
+discovery_timeout = 120
+version = "==1.9.1"
+description = "A set of python modules for machine learning and data mining"
+
+[sources.scikit_optimize]
+kind = "python"
+package = "scikit-optimize"
+module = "skopt"
+python = "3.12"
+discovery_timeout = 120
+version = "==0.10.2"
+description = "Sequential model-based optimization toolbox."
+
+[sources.scipy]
+kind = "python"
+package = "scipy"
+module = "scipy"
+python = "3.12"
+discovery_timeout = 120
+version = "==1.18.1"
+description = "Fundamental algorithms for scientific computing in Python"
+
+[sources.scrublet]
+kind = "python"
+package = "scrublet"
+module = "scrublet"
+python = "3.12"
+discovery_timeout = 120
+version = "==0.2.3"
+description = "Doublet prediction in single-cell RNA-sequencing data"
+
+[sources.scvelo]
+kind = "python"
+package = "scvelo"
+module = "scvelo"
+python = "3.12"
+discovery_timeout = 120
+version = "==0.3.4"
+description = "RNA velocity generalized through dynamical modeling"
+enabled = false
+disabled_reason = "Provisioning or discovery failed on darwin-arm64; see validation report."
+
+[sources.scvi_tools]
+kind = "python"
+package = "scvi-tools"
+module = "scvi"
+python = "3.12"
+discovery_timeout = 120
+version = "==1.5.1"
+description = "Deep probabilistic analysis of single-cell omics data."
+enabled = false
+disabled_reason = "Provisioning or discovery failed on darwin-arm64; see validation report."
+
+[sources.seaborn]
+kind = "python"
+package = "seaborn"
+module = "seaborn"
+python = "3.12"
+discovery_timeout = 120
+version = "==0.13.2"
+description = "Statistical data visualization"
+
+[sources.souporcell]
+kind = "python"
+package = "souporcell"
+module = "souporcell"
+python = "3.12"
+discovery_timeout = 120
+enabled = false
+disabled_reason = "HTTP Error 404: Not Found"
+
+[sources.statsmodels]
+kind = "python"
+package = "statsmodels"
+module = "statsmodels.stats.weightstats"
+python = "3.12"
+discovery_timeout = 120
+version = "==0.15.0"
+description = "Statistical computations and models for Python"
+
+[sources.sympy]
+kind = "python"
+package = "sympy"
+module = "sympy"
+python = "3.12"
+discovery_timeout = 120
+version = "==1.14.0"
+description = "Computer algebra system (CAS) in Python"
+
+[sources.tiledb]
+kind = "python"
+package = "tiledb"
+module = "tiledb"
+python = "3.12"
+discovery_timeout = 120
+version = "==0.36.1"
+description = "Pythonic interface to the TileDB array storage manager"
+
+[sources.tiledbsoma]
+kind = "python"
+package = "tiledbsoma"
+module = "tiledbsoma"
+python = "3.12"
+discovery_timeout = 120
+version = "==2.3.0"
+description = "Python API for efficient storage and retrieval of single-cell data using TileDB"
+
+
+[sources.torch]
+kind = "python"
+package = "torch"
+module = "torch.nn"
+python = "3.12"
+discovery_timeout = 120
+version = "==2.8.0"
+discovery = "lazy"
+description = "Tensors and Dynamic neural networks in Python with strong GPU acceleration"
+
+[sources.torch_geometric]
+kind = "python"
+package = "torch_geometric"
+module = "torch_geometric"
+python = "3.12"
+discovery_timeout = 120
+version = "==2.8.0.post1"
+dependencies = ["torch==2.8.0"]
+description = "Graph Neural Network Library for PyTorch"
+
+[sources.tqdm]
+kind = "python"
+package = "tqdm"
+module = "tqdm"
+python = "3.12"
+discovery_timeout = 120
+version = "==4.70.1"
+description = "Fast, Extensible Progress Meter"
+
+[sources.trackpy]
+kind = "python"
+package = "trackpy"
+module = "trackpy"
+python = "3.12"
+discovery_timeout = 120
+version = "==0.7"
+description = "particle-tracking toolkit"
+
+[sources.tskit]
+kind = "python"
+package = "tskit"
+module = "tskit"
+python = "3.12"
+discovery_timeout = 120
+version = "==1.0.3"
+description = "The tree sequence toolkit."
+
+[sources.umap_learn]
+kind = "python"
+package = "umap-learn"
+module = "umap"
+python = "3.12"
+discovery_timeout = 120
+version = "==0.5.12"
+description = "Uniform Manifold Approximation and Projection"
+enabled = false
+disabled_reason = "Provisioning or discovery failed on darwin-arm64; see validation report."
+
+[sources.uniprot]
+kind = "openapi"
+spec = "https://rest.uniprot.org/uniprotkb/api/docs"
+base_url = "https://rest.uniprot.org"
+description = "UniProtKB protein entries and searches."
+
+[sources.uniprot_idmapping]
+kind = "openapi"
+spec = "https://rest.uniprot.org/idmapping/api/docs"
+base_url = "https://rest.uniprot.org"
+description = "Public UniProt identifier mapping jobs."
+
+[sources.uniprot_proteomes]
+kind = "openapi"
+spec = "https://rest.uniprot.org/proteomes/api/docs"
+base_url = "https://rest.uniprot.org"
+description = "UniProt proteome entries and searches."
+
+[sources.uniprot_uniparc]
+kind = "openapi"
+spec = "https://rest.uniprot.org/uniparc/api/docs"
+base_url = "https://rest.uniprot.org"
+description = "UniParc sequence archive entries and searches."
+
+[sources.uniprot_uniref]
+kind = "openapi"
+spec = "https://rest.uniprot.org/uniref/api/docs"
+base_url = "https://rest.uniprot.org"
+description = "UniRef cluster interface exposed by the official OpenAPI specification."
+
+[sources.velocyto]
+kind = "python"
+package = "velocyto"
+module = "velocyto"
+python = "3.12"
+discovery_timeout = 120
+version = "==0.17.17"
+description = "RNA velocity analysis for single cell RNA-seq data"
+enabled = false
+disabled_reason = "Provisioning or discovery failed on darwin-arm64; see validation report."
+
+[sources.viennarna]
+kind = "python"
+package = "viennarna"
+module = "RNA"
+python = "3.12"
+discovery_timeout = 120
+version = "==2.7.2"
+description = "A library for the prediction and comparison of RNA secondary structures."
+
+[sources.xarray]
+kind = "python"
+package = "xarray"
+module = "xarray"
+python = "3.12"
+discovery_timeout = 120
+version = "==2026.9.0"
+description = "N-D labeled arrays and datasets in Python"
+
+[sources.xesmf]
+kind = "python"
+package = "xesmf"
+module = "xesmf"
+python = "3.12"
+discovery_timeout = 120
+version = "==0.9.2"
+description = "Universal Regridder for Geospatial Data"
+enabled = false
+disabled_reason = "Requires ESMF/esmpy runtime beyond current uv provisioning."
+
+[sources.xgboost]
+kind = "python"
+package = "xgboost"
+module = "xgboost"
+python = "3.12"
+discovery_timeout = 120
+version = "==3.4.1"
+description = "XGBoost Python Package"
+
+[sources.zarr]
+kind = "python"
+package = "zarr"
+module = "zarr"
+python = "3.12"
+discovery_timeout = 120
+version = "==3.4.1"
+description = "An implementation of chunked, compressed, N-dimensional arrays for Python"
+
+# Identifier mapping and curated biomedical clients.
+[sources.mygene]
+kind = "python"
+package = "mygene"
+module = "mygene"
+version = "==3.2.2"
+python = "3.12"
+description = "Map gene symbols, Entrez, Ensembl and UniProt identifiers through MyGene.info."
+
+[sources.biothings_client]
+kind = "python"
+package = "biothings-client"
+module = "biothings_client"
+version = "==0.5.1"
+python = "3.12"
+description = "Query MyGene, MyChem and MyDisease with native get_client factories for identifier mapping and annotations."
+
+[sources.pybiomart]
+kind = "python"
+package = "pybiomart"
+module = "pybiomart"
+version = "==0.2.0"
+python = "3.12"
+description = "Query Ensembl BioMart and map gene identifiers. Use Dataset with --host=http://www.ensembl.org (redirects to HTTPS); directly supplied HTTPS hosts are broken in pybiomart 0.2.0."
+
+[sources.omnipath]
+kind = "python"
+package = "omnipath"
+module = "omnipath"
+version = "==1.0.12"
+python = "3.12"
+submodules = true
+discovery_timeout = 120
+description = "Retrieve curated signaling, protein interactions, ligand-receptor interactions and annotations from OmniPath."
+
+[sources.pyhpo]
+kind = "python"
+package = "pyhpo"
+module = "pyhpo"
+version = "==4.0.0"
+python = "3.12"
+description = "Explore the bundled Human Phenotype Ontology offline, including terms, relationships and phenotype sets."
+
+[sources.gtex]
+kind = "openapi"
+spec = "https://gtexportal.org/api/v2/openapi.json"
+base_url = "https://gtexportal.org"
+description = "Query GTEx gene expression, tissue reference data and expression quantitative trait loci."
+
+[sources.alphafold]
+kind = "openapi"
+spec = "https://alphafold.ebi.ac.uk/api/openapi.json"
+base_url = "https://alphafold.ebi.ac.uk/api"
+description = "Retrieve AlphaFold predicted protein structure metadata by UniProt identifier."
+
+[sources.monarch]
+kind = "openapi"
+spec = "https://api-v3.monarchinitiative.org/openapi.json"
+base_url = "https://api-v3.monarchinitiative.org"
+description = "Query Monarch genes, diseases, phenotypes and cross-species associations."
+
+[sources.clinpgx]
+kind = "openapi"
+spec = "https://api.clinpgx.org/openapi.json"
+base_url = "https://api.clinpgx.org/v1"
+description = "Query ClinPGx (formerly PharmGKB) genes, drugs and pharmacogenomic annotations; public API rate limit is two requests per second."
+
+[sources.europepmc]
+kind = "openapi"
+spec = "https://www.ebi.ac.uk/europepmc/webservices/rest/v3/api-docs"
+base_url = "https://www.ebi.ac.uk/europepmc/webservices/rest"
+description = "Search Europe PMC biomedical publications and retrieve article metadata and annotations."
+
+[sources.intact]
+kind = "openapi"
+spec = "https://www.ebi.ac.uk/intact/ws/interaction/v3/api-docs"
+base_url = "https://www.ebi.ac.uk/intact/ws/interaction"
+description = "Search IntAct experimentally supported molecular interactions."
+
+[sources.intact_interactors]
+kind = "openapi"
+spec = "https://www.ebi.ac.uk/intact/ws/interactor/v3/api-docs"
+base_url = "https://www.ebi.ac.uk/intact/ws/interactor"
+description = "Resolve IntAct molecular interactors and their identifiers."
+
+[sources.intact_network]
+kind = "openapi"
+spec = "https://www.ebi.ac.uk/intact/ws/network/v3/api-docs"
+base_url = "https://www.ebi.ac.uk/intact/ws/network"
+description = "Retrieve IntAct graph nodes and edges. Broad protein queries may return HTTP 403; narrow queries with native filters such as minMIScore."
+
+[sources.intact_graph]
+kind = "openapi"
+spec = "https://www.ebi.ac.uk/intact/ws/graph/v3/api-docs"
+base_url = "https://www.ebi.ac.uk/intact/ws/graph"
+description = "Retrieve IntAct interaction participants and graph details."

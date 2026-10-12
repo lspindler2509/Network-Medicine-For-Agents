@@ -6,6 +6,7 @@ import shutil
 from pathlib import Path
 from .layout import data_directory
 from ..errors import UserError
+from ..worker.references import ObjectError, resolve_identity
 
 
 def directory_for():
@@ -18,7 +19,15 @@ def validate_id(value):
     return value
 
 
+def resolve_object(value):
+    try:
+        return resolve_identity(directory_for(), value)
+    except ObjectError as error:
+        raise UserError(str(error)) from error
+
+
 def inspect_object(value):
+    value = resolve_object(value)
     root = directory_for()
     path = root / validate_id(value)
     if any(
@@ -51,6 +60,8 @@ def clean(ids, dry_run=False):
     entries = (
         [inspect_object(value) for value in selected] if selected else list_objects()
     )
+    # An ID and its label may identify the same immutable snapshot.
+    entries = list({item["id"]: item for item in entries}.values())
     if not dry_run:
         for item in entries:
             shutil.rmtree(directory_for() / item["id"])
@@ -77,5 +88,64 @@ def execution_options(arguments):
         else:
             args.append(arg)
     if "--save-updated-object" in options:
-        validate_id(options["--save-updated-object"])
+        options["--save-updated-object"] = resolve_object(
+            options["--save-updated-object"]
+        )
     return args, options
+
+
+def display_metadata(value, full=False):
+    metadata = inspect_object(value)
+    if full:
+        return metadata
+    arguments = json.dumps(metadata.pop("arguments", []), ensure_ascii=False)
+    metadata["arguments_preview"] = arguments[:500]
+    metadata["arguments_truncated"] = len(arguments) > 500
+    if metadata["arguments_truncated"]:
+        metadata["arguments_note"] = (
+            "Use --full to show the complete original arguments"
+        )
+    return metadata
+
+
+def show(value, arguments):
+    import os
+    import subprocess
+    from .environments import WORKER
+    from .processes import process_environment
+
+    metadata = inspect_object(value)
+    identity = metadata.get("environment_id", "")
+    if not isinstance(identity, str) or not re.fullmatch(r"[0-9a-f]{24}", identity):
+        raise UserError("Snapshot has no valid original environment reference")
+    root = data_directory() / "environments"
+    environment = root / identity
+    ready = environment / "environment.json"
+    if any(path.is_symlink() for path in (root, environment, ready)):
+        raise UserError("Symlink environment metadata is not supported")
+    python = environment / ("Scripts/python.exe" if os.name == "nt" else "bin/python")
+    if not ready.is_file() or not python.is_file():
+        raise UserError(
+            "Original snapshot environment is unavailable; no packages are installed automatically"
+        )
+    if json.loads(ready.read_text()).get("id") != identity:
+        raise UserError("Original environment metadata ID does not match")
+    parsed, options = execution_options(arguments)
+    request = {
+        "action": "show_object",
+        "object_id": metadata["id"],
+        "object_metadata": display_metadata(metadata["id"]),
+        "module": metadata["source"],
+        "environment_id": identity,
+        "objects_root": str(directory_for()),
+        "object_options": options,
+        "arguments": parsed[1:] if parsed[:1] == ["-"] else parsed,
+        "original_arguments": arguments,
+        "name": "netmed objects show " + metadata["id"],
+    }
+    return subprocess.run(
+        [str(python), str(WORKER)],
+        input=json.dumps(request),
+        text=True,
+        env=process_environment(),
+    ).returncode

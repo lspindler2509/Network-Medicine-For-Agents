@@ -1,6 +1,8 @@
 """Read small source metadata; delegate OpenAPI operation generation to Restish."""
 
 from pathlib import Path
+import hashlib
+import json
 import yaml
 import requests
 from ..catalog import validate_url
@@ -39,12 +41,19 @@ def documentation(spec):
     }
 
 
-def discover(source, name, *, document=None):
+def discover(source, name, *, document=None, backend_directory=None):
     from ..runtime.restish import prepare
 
     if document is None:
         document = load_document(source["spec"])
-    result = prepare(source, name, document)
+    result = (
+        prepare(source, name, document, directory=backend_directory)
+        if backend_directory is not None
+        else prepare(source, name, document)
+    )
+    result["schema_sha256"] = hashlib.sha256(
+        json.dumps(document, sort_keys=True, ensure_ascii=False).encode()
+    ).hexdigest()
     info = document.get("info", {})
     result["source_metadata"] = {
         "title": info.get("title", ""),

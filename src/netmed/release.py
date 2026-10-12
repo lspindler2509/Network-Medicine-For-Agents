@@ -7,14 +7,16 @@ from pathlib import Path
 import re
 import subprocess
 import tempfile
-from .catalog import load, python_configuration_hash
+from .catalog import python_configuration_hash
 from .errors import UserError
 from .runtime.environments import UvEnvironmentManager, platform_target
 from .runtime.processes import process_environment
 
 
-def export(catalog_path, destination, names=None):
-    catalog = load(catalog_path)
+def export(catalog_path, destination, names=None, *, use_updates=False):
+    from .runtime.source_updates import active_catalog
+
+    catalog = active_catalog(catalog_path, use_updates=use_updates)
     selected = list(dict.fromkeys(names or catalog["sources"]))
     if any(name not in catalog["sources"] for name in selected):
         raise UserError("Unknown release source")
@@ -44,7 +46,7 @@ def export(catalog_path, destination, names=None):
         manifest = {
             "target": platform_target(),
             "locks": {},
-            "api_specs": "Bundled self-contained OpenAPI snapshots; remote database contents are not pinned.",
+            "api_specs": "Bundled OpenAPI and GraphQL schema snapshots; remote database contents are not pinned.",
         }
         for name in selected:
             source = copy.deepcopy(catalog["sources"][name])
@@ -109,6 +111,18 @@ def export(catalog_path, destination, names=None):
                     metadata["configuration_hash"] = python_configuration_hash(source)
                     metadata["lock_sha256"] = digest
                 manifest["locks"][name] = {"sha256": digest, "python": actual}
+            elif source["kind"] == "graphql":
+                from .graphql.schema import read_snapshot
+
+                document = read_snapshot(source)
+                (root / "schemas").mkdir(exist_ok=True)
+                relative = f"schemas/{name}.json"
+                content = json.dumps(document, ensure_ascii=False).encode()
+                (root / relative).write_bytes(content)
+                source["graphql"] = {
+                    "schema": relative,
+                    "sha256": hashlib.sha256(content).hexdigest(),
+                }
             else:
                 from .runtime.restish_binary import VERSION
                 from .importers.openapi import load_document, require_self_contained

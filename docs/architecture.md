@@ -57,6 +57,8 @@ Windows detachment uses native creation flags; termination uses `taskkill` for t
 | `src/netmed/worker/metadata.py` | Installed distribution summaries and descriptions; no checkout README fallback. |
 | `src/netmed/worker/invocation.py` | Package/submodule imports, declarative setup and Fire invocation. |
 | `src/netmed/worker/objects.py` | Trusted Pickle loading/saving, selectors, atomic artifact publication and saved-output handling. |
+| `src/netmed/worker/results.py` | Type-agnostic Fire serialization fallback: native output, supported JSON exporters, then snapshot. |
+| `src/netmed/worker/references.py` | Shared pure ID/label resolution; no core dependency or unpickling. |
 | `src/netmed/worker/callbacks.py` | Explicit trusted lambda parsing. |
 
 The complete worker source package is shipped as application resources, excluded from the frozen core module collection, and run using the scientific environment's interpreter. It requires neither the core nor copied worker definitions in NETMED_DATA_DIR.
@@ -103,6 +105,8 @@ Application code/resources stay in the installed bundle; mutable state uses NETM
 | `README.md` | Current build/run/development instructions and generic limitations. |
 | `docs/architecture.md` | This file-by-file map and architecture assessment. |
 | `docs/releases.md` | Build/export internals and remaining public distribution decisions. |
+| `docs/sources.md` | Generic integration rules and maintained native-source limitations. |
+| `docs/nice-to-have-sources.md` | Deferred biomedical candidates and future upstream work. |
 
 ## Architectural constraints
 
@@ -111,3 +115,38 @@ Application code/resources stay in the installed bundle; mutable state uses NETM
 - Discovery can execute import-time package code and remain incomplete for dynamic interfaces. The independent worker protocol must stay compatible with both source and frozen execution.
 - Restish defines API serialization, pagination and native argument behavior. JSON-validation default detection depends on its pinned help format. The configured API base URL is a default, not an enforced origin boundary.
 - Rebuilding replaces the bundle used by running jobs. Stop those jobs first. Object cleanup does not track active job inputs, and automatic job recovery is intentionally absent.
+
+
+## GraphQL boundary
+
+GraphQL is a separate source kind. `importers/graphql.py` obtains a standard
+introspection response, lets graphql-core validate/build the schema, and writes
+an immutable content-addressed snapshot. `graphql/schema.py` verifies the snapshot
+checksum and formats provider-native type metadata for help; `graphql/transport.py`
+implements the standard JSON POST envelope. `runtime/graphql.py` owns direct-query
+argument parsing, read-only validation and execution, shared by foreground calls
+and jobs. Neither Fire nor Restish interprets GraphQL documents.
+
+The catalog holds endpoint, snapshot reference and small overview metadata.
+Release export copies snapshots with relative paths; jobs retain references rather
+than copying schemas. A build requires public introspection, and normal query execution does not
+fetch or silently refresh a schema. An explicit `sources update` can refresh it. Unknown fields therefore require a schema refresh or rebuild
+when the provider changes its schema. There are no source-specific queries,
+parameter mappings, biomedical response transforms or automatic cursor traversal.
+
+
+## Explicit API refresh
+
+`runtime/source_updates.py` coordinates OpenAPI/GraphQL refresh through the existing
+importers. OpenAPI retains its remote `spec_origin` even in release snapshots;
+Restish validates the fetched local snapshot in a temporary backend directory.
+GraphQL discovers its schema in staging. Dry-run discards all staging artifacts.
+Only successful changed interfaces are published as immutable snapshots, followed
+by an atomic overlay/catalog write. Source failures do not block successful peers.
+
+Default routing merges the bundled/data catalog with a small API-only overlay,
+bound to each source definition's endpoint/base URL/origin. Explicit catalog selection
+bypasses it. Python configuration is never copied into the overlay. Foreground help,
+docs and execution, new jobs, and explicit release export use the active interface;
+existing jobs retain persisted references. API update locks serialize publishers.
+Managed `api-updates` files are included in explicit `clean --all` cleanup.

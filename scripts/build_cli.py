@@ -3,6 +3,7 @@
 import argparse
 import hashlib
 import json
+from importlib.metadata import distribution, version as package_version
 import os
 from pathlib import Path
 import shutil
@@ -57,11 +58,23 @@ def main():
     )
     export(cache / "catalog.json", resources, args.source)
     shutil.copy2(project / "LICENSE", resources / "LICENSE")
+    licenses = resources / "licenses"
+    licenses.mkdir()
+    graphql_distribution = distribution("graphql-core")
+    shutil.copy2(
+        graphql_distribution.locate_file(
+            "graphql_core-"
+            + package_version("graphql-core")
+            + ".dist-info/licenses/LICENSE"
+        ),
+        licenses / "graphql-core.txt",
+    )
     (resources / "bin").mkdir()
     suffix = ".exe" if os.name == "nt" else ""
     for name, origin in [("restish", restish), ("uv", uv)]:
         shutil.copy2(origin, resources / "bin" / (name + suffix))
     manifest = json.loads((resources / "manifest.json").read_text())
+    manifest["graphql_core_version"] = graphql_distribution.version
     manifest["uv_version"] = version
     manifest["native_sha256"] = {
         path.name: hashlib.sha256(path.read_bytes()).hexdigest()

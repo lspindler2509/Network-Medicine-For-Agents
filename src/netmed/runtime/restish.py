@@ -18,7 +18,7 @@ def environment(cache):
     return env
 
 
-def prepare(source, name, document):
+def prepare(source, name, document, *, directory=None):
     binary = ensure()
     identity = {
         "name": name,
@@ -28,7 +28,9 @@ def prepare(source, name, document):
         "restish": VERSION,
     }
     digest = hashlib.sha256(json.dumps(identity, sort_keys=True).encode()).hexdigest()
-    root = data_directory() / "restish" / digest
+    root = (
+        Path(directory) if directory is not None else data_directory() / "restish"
+    ) / digest
     root.mkdir(parents=True, exist_ok=True)
     api = {"base_url": source["base_url"]}
     if source["spec"].startswith("https://"):

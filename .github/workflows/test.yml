@@ -24,6 +24,7 @@ jobs:
     env:
       NETMED_PROCESS_TESTS: "1"
       NETMED_RESTISH_TESTS: "1"
+      NETMED_GRAPHQL_TESTS: "1"
     steps:
       - uses: actions/checkout@v6
         with:
@@ -32,4 +33,6 @@ jobs:
         with:
           python-version: '3.11'
       - run: python -m pip install .
+      - name: Prepare isolated pinned-Fire worker for result contract tests
+        run: python -c "import os,pathlib,subprocess,venv; root=pathlib.Path('.build/test-worker').resolve(); venv.create(root,with_pip=True); worker=root/('Scripts/python.exe' if os.name=='nt' else 'bin/python'); subprocess.run([str(worker),'-m','pip','install','fire==0.7.1'],check=True); open(os.environ['GITHUB_ENV'],'a').write('NETMED_WORKER_PYTHON='+str(worker)+'\n')"
       - run: python -m unittest discover -s tests -v

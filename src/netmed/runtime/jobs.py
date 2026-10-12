@@ -184,11 +184,13 @@ def kill(directory, job):
     return {**job_label(root, status), "state": status["state"]}
 
 
-def launch(catalog, arguments, directory):
+def launch(catalog, arguments, directory, *, use_updates=False):
     job = uuid.uuid4().hex
     root = Path(directory).resolve() / job
     # Keep only the runtime configuration needed by this command.
-    source = load(catalog)["sources"][arguments[0]]
+    from .source_updates import active_catalog
+
+    source = active_catalog(catalog, use_updates=use_updates)["sources"][arguments[0]]
     environment = None
     if source["kind"] == "python":
         from .python import prepare
@@ -197,6 +199,15 @@ def launch(catalog, arguments, directory):
         execution = {
             key: source[key]
             for key in ("kind", "module", "submodules", "setup")
+            if key in source
+        }
+    elif source["kind"] == "graphql":
+        from ..graphql.schema import load_schema
+
+        load_schema(source)  # Verify the snapshot before creating/detaching a job.
+        execution = {
+            key: source[key]
+            for key in ("kind", "endpoint", "timeout", "graphql")
             if key in source
         }
     else:
@@ -260,6 +271,16 @@ def worker(root):
                     arguments[1:],
                     name="netmed " + initial["tool"],
                     environment=load(root / "environment.json"),
+                    stdout=output,
+                    stderr=errors,
+                )
+            elif source["kind"] == "graphql":
+                from .graphql import invoke
+
+                code = invoke(
+                    source,
+                    arguments[1:],
+                    name="netmed " + initial["tool"],
                     stdout=output,
                     stderr=errors,
                 )

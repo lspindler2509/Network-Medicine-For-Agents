@@ -1,12 +1,14 @@
 import json
 import hashlib
 import re
+import math
 import tomllib
 from pathlib import Path
 from urllib.parse import urlsplit
 
 
 RESERVED_COMMANDS = {
+    "clean",
     "build",
     "sources",
     "docs",
@@ -104,6 +106,8 @@ def build(
             if not spec.startswith("https://"):
                 spec = str((config.parent / spec).resolve())
             item["spec"] = spec
+            if spec.startswith("https://"):
+                item["spec_origin"] = spec
             if snapshot_directory is not None:
                 from .importers.openapi import load_document, require_self_contained
 
@@ -116,6 +120,24 @@ def build(
                 item.update(discover(item, name, document=document))
             else:
                 item.update(discover(item, name))
+        elif item["kind"] == "graphql":
+            from .importers.graphql import discover as discover_graphql
+
+            validate_url(item["endpoint"])
+            timeout = item.get("timeout", 60)
+            if (
+                isinstance(timeout, bool)
+                or not isinstance(timeout, (int, float))
+                or not math.isfinite(timeout)
+                or timeout <= 0
+            ):
+                raise ValueError("timeout must be a finite positive number")
+            directory = (
+                Path(snapshot_directory) / "graphql"
+                if snapshot_directory is not None
+                else Path(destination).resolve().parent / "graphql-schemas"
+            )
+            item.update(discover_graphql(item, name, directory))
         else:
             raise ValueError(f"Unsupported source kind: {item['kind']}")
         if item.get("execution", "foreground") not in ("foreground", "background"):
@@ -131,6 +153,10 @@ def load(path):
     path = Path(path).resolve()
     catalog = json.loads(path.read_text())
     for source in catalog.get("sources", {}).values():
+        if source.get("graphql"):
+            source["graphql"]["schema"] = str(
+                (path.parent / source["graphql"]["schema"]).resolve()
+            )
         if source.get("lock"):
             source["lock"]["path"] = str(
                 (path.parent / source["lock"]["path"]).resolve()

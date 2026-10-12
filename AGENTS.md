@@ -34,6 +34,9 @@ Future source discovery is a separate stage: a scheduled search, potentially ass
 | `src/netmed/cli.py` | Argument parsing, command routing, help and user-visible output. No direct job-file access. |
 | `src/netmed/catalog.py` | Registry validation and catalog construction. |
 | `src/netmed/importers/python.py` | Python interface discovery and cached help. |
+| `src/netmed/importers/graphql.py` | Public introspection discovery and immutable schema snapshots. |
+| `src/netmed/graphql/` | Generic schema loading/help and GraphQL-over-HTTP transport. |
+| `src/netmed/runtime/graphql.py` | Direct read-only queries and shared foreground/background execution. |
 | `src/netmed/importers/openapi.py` | OpenAPI overview/docs reading; delegate command generation to Restish. |
 | `src/netmed/runtime/object_store.py` | Inspect/list/clean local object metadata and parse reserved save options; never unpickle in the core CLI. |
 | `src/netmed/runtime/python.py` | Shared Python invocation and environment compatibility checks for foreground and background execution. |
@@ -163,3 +166,29 @@ Manual workflow release dispatch on main may create a matching version tag at th
 ## User installation
 
 installers/install.sh and installers/install.ps1 install published OS/CPU bundles into versioned user directories, verify SHA-256 and configure command lookup. Keep existing version files for active jobs, never delete managed data, and never require Python or admin privileges to install. Default installation discovers the newest public release, including pre-releases; the --version/-Version parameter explicitly pins a release. Do not select drafts. Installer tests isolate all filesystem changes and disable real PATH modification; Windows runs in native CI.
+
+
+## GraphQL backend
+
+GraphQL sources require public introspection at build time. Keep discovery in
+importers/graphql.py, common schema/transport behavior in graphql/, and invocation
+in runtime/graphql.py. graphql-core owns parsing, schema construction, query and
+variable validation; do not write a GraphQL parser or provider-specific queries.
+Read-only query documents are direct CLI arguments, with JSON variables and an
+optional operation name. Preserve the data/errors/extension envelope. GraphQL errors
+must fail even with HTTP 200 and partial data; foreground/background share the same
+runtime. Schemas are immutable hashed files referenced by catalogs/jobs and copied
+with relative paths for release bundles. No credentials, schema-file fallback,
+automatic pagination, mutations or subscriptions in the current scope.
+
+
+## API source refresh
+
+`runtime/source_updates.py` owns explicit `sources update [names...] [--dry-run]`.
+Only OpenAPI/GraphQL sources participate. Preserve original remote OpenAPI URLs in
+spec_origin when building/exporting snapshots. Reuse importers and native Restish
+validation in isolated staging; dry-run must not activate interfaces or alter live
+backend caches. Publish immutable snapshots and atomically activate only successful
+changes. Keep old job references valid and never retry user queries automatically.
+Default CLI routing uses API-only overrides bound to matching source definitions;
+explicit --catalog bypasses overrides. Keep Python versions/locks outside refresh.

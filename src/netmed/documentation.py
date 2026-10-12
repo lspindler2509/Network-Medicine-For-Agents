@@ -15,6 +15,10 @@ def documentation(source):
         from .importers.openapi import documentation as api_documentation
 
         return api_documentation(source["spec"])
+    if source["kind"] == "graphql":
+        from .graphql.schema import load_schema, overview
+
+        return overview(load_schema(source))
     return python_documentation(source)
 
 

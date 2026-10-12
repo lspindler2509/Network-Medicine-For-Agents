@@ -139,3 +139,19 @@ def stop_worker(pid, root):
         raise UserError(
             "Could not inspect or stop the job worker; check its status and process permissions"
         ) from error
+
+
+def activity_process_identity():
+    """Record process creation time as well as PID to detect PID reuse."""
+    process = psutil.Process()
+    return {"pid": process.pid, "created_at": process.create_time()}
+
+
+def activity_process_alive(record):
+    try:
+        process = psutil.Process(record["pid"])
+        return process.create_time() == record["created_at"] and process.is_running()
+    except psutil.NoSuchProcess:
+        return False
+    except psutil.AccessDenied as error:
+        raise UserError("Cannot verify active process; cleanup refused") from error

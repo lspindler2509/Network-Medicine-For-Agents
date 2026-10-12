@@ -13,6 +13,93 @@ from netmed.worker.callbacks import parse_callback
 
 
 class ObjectTests(unittest.TestCase):
+    def test_metadata_preview_keeps_complete_arguments_on_disk(self):
+        with (
+            tempfile.TemporaryDirectory() as directory,
+            patch.dict(os.environ, {"NETMED_DATA_DIR": directory}),
+        ):
+            request = {
+                "objects_root": str(objects.directory_for()),
+                "module": "example",
+                "environment_id": "test",
+                "original_arguments": ["query", "x" * 53000],
+                "object_options": {"--save-object": "large"},
+            }
+            _, save = worker.object_io(request)
+            identity = json.loads(save([1]))["saved_objects"][0]["id"]
+            brief = objects.display_metadata(identity)
+            self.assertNotIn("arguments", brief)
+            self.assertEqual(len(brief["arguments_preview"]), 500)
+            self.assertTrue(brief["arguments_truncated"])
+            self.assertEqual(
+                objects.display_metadata(identity, full=True)["arguments"],
+                request["original_arguments"],
+            )
+
+    def test_show_launches_original_environment_and_forwards_fire_arguments(self):
+        with (
+            tempfile.TemporaryDirectory() as directory,
+            patch.dict(os.environ, {"NETMED_DATA_DIR": directory}),
+        ):
+            environment_id = "a" * 24
+            request = {
+                "objects_root": str(objects.directory_for()),
+                "module": "example",
+                "environment_id": environment_id,
+                "original_arguments": [],
+                "object_options": {"--save-object": "saved"},
+            }
+            _, save = worker.object_io(request)
+            identity = json.loads(save([1]))["saved_objects"][0]["id"]
+            with self.assertRaisesRegex(ValueError, "unavailable"):
+                objects.show(identity, [])
+            root = Path(directory) / "environments" / environment_id
+            executable = root / (
+                "Scripts/python.exe" if os.name == "nt" else "bin/python"
+            )
+            executable.parent.mkdir(parents=True)
+            executable.touch()
+            (root / "environment.json").write_text(json.dumps({"id": environment_id}))
+            with patch("subprocess.run") as run:
+                run.return_value.returncode = 0
+                self.assertEqual(
+                    objects.show("saved", ["-", "to_csv", "--index=False"]), 0
+                )
+                self.assertEqual(run.call_args.args[0][0], str(executable.resolve()))
+                sent = json.loads(run.call_args.kwargs["input"])
+                self.assertEqual(sent["action"], "show_object")
+                self.assertEqual(sent["object_id"], identity)
+                self.assertEqual(sent["arguments"], ["to_csv", "--index=False"])
+            (root / "environment.json").write_text(json.dumps({"id": "wrong"}))
+            with self.assertRaisesRegex(ValueError, "does not match"):
+                objects.show(identity, [])
+
+    def test_labels_selectors_identity_and_ambiguity(self):
+        with (
+            tempfile.TemporaryDirectory() as directory,
+            patch.dict(os.environ, {"NETMED_DATA_DIR": directory}),
+        ):
+            request = {
+                "objects_root": str(objects.directory_for()),
+                "module": "example",
+                "environment_id": "test",
+                "original_arguments": [],
+                "object_options": {"--save-object": "lung_graph"},
+            }
+            load, save = worker.object_io(request)
+            identity = json.loads(save({"nodes": [1, 2]}))["saved_objects"][0]["id"]
+            self.assertIs(load("@object:lung_graph"), load("@object:" + identity))
+            self.assertEqual(load('@object:lung_graph["nodes"][0]'), 1)
+            self.assertEqual(objects.inspect_object("lung_graph")["id"], identity)
+            _, options = objects.execution_options(["--save-updated-object=lung_graph"])
+            self.assertEqual(options["--save-updated-object"], identity)
+            json.loads(save([3]))
+            with self.assertRaisesRegex(worker.ObjectError, "Ambiguous"):
+                load("@object:lung_graph")
+            with self.assertRaisesRegex(ValueError, "Ambiguous"):
+                objects.inspect_object("lung_graph")
+            self.assertEqual(load("@object:" + identity)["nodes"], [1, 2])
+
     def test_cleanup_rejects_metadata_path_escape(self):
         with (
             tempfile.TemporaryDirectory() as directory,
@@ -107,9 +194,11 @@ class ObjectTests(unittest.TestCase):
             self.assertIs(resolved[0], resolved[1]["nested"])
             self.assertEqual(objects.list_objects()[0]["label"], "data")
             self.assertEqual(objects.inspect_object(identity)["environment_id"], "env")
-            self.assertTrue(objects.clean([identity], True)["would_remove"])
+            self.assertEqual(
+                len(objects.clean([identity, "data"], True)["would_remove"]), 1
+            )
             self.assertTrue(Path(objects.inspect_object(identity)["path"]).exists())
-            self.assertEqual(len(objects.clean([identity])["removed"]), 1)
+            self.assertEqual(len(objects.clean([identity, "data"])["removed"]), 1)
             self.assertEqual(objects.list_objects(), [])
 
     def test_failed_save_not_published_and_invalid_cleanup_is_atomic(self):
@@ -184,7 +273,7 @@ class ObjectTests(unittest.TestCase):
     def test_saved_output_keeps_child_diagnostics_off_json_stdout(self):
         path = str(Path(__file__).parents[1] / "src/netmed/worker/objects.py")
         code = """import importlib.util,sys,subprocess
-spec=importlib.util.spec_from_file_location('w',sys.argv[1]);w=importlib.util.module_from_spec(spec);spec.loader.exec_module(w)
+from netmed.worker import objects as w
 with w.saved_output() as output:
  print('parent progress')
  subprocess.run([sys.executable,'-c',"print('child progress')"],check=True)

@@ -6,8 +6,31 @@ import json
 import sys
 
 
-class ObjectError(ValueError):
-    pass
+from .references import ObjectError, resolve_identity
+
+
+def structure_overview(value):
+    """Bounded immediate structure for built-in containers; never inspect scientific data."""
+    if type(value) not in (list, tuple, dict):
+        return None
+    items = value.items() if type(value) is dict else enumerate(value)
+    entries = []
+    for index, (key, item) in enumerate(items):
+        if index >= 20:
+            break
+        if type(key) in (int, str):
+            entries.append(
+                {
+                    "key": key,
+                    "selector": "[" + repr(key) + "]",
+                    "type": type(item).__module__ + "." + type(item).__qualname__,
+                }
+            )
+    return {
+        "length": len(value),
+        "items": entries,
+        "complete": len(entries) == len(value),
+    }
 
 
 def object_io(request):
@@ -31,10 +54,11 @@ def object_io(request):
             return {key: load(item) for key, item in value.items()}
         if not isinstance(value, str) or not value.startswith("@object:"):
             return value
-        match = re.fullmatch(r"@object:([0-9a-f]{32})(.*)", value)
+        match = re.fullmatch(r"@object:([^\[\]]+)(.*)", value)
         if not match:
-            raise ObjectError("Invalid object reference; use @object:<32-character ID>")
+            raise ObjectError("Invalid object reference; use @object:<ID-or-label>")
         identity, suffix = match.groups()
+        identity = resolve_identity(root, identity)
         selectors = []
         if suffix:
             import ast
@@ -116,26 +140,9 @@ def object_io(request):
                     for dist in importlib.metadata.distributions()
                 },
             }
-            if type(value) in (list, tuple, dict):
-                items = value.items() if type(value) is dict else enumerate(value)
-                entries = []
-                for key, item in items:
-                    if len(entries) >= 20:
-                        break
-                    if type(key) in (int, str):
-                        entries.append(
-                            {
-                                "selector": "[" + repr(key) + "]",
-                                "type": type(item).__module__
-                                + "."
-                                + type(item).__qualname__,
-                            }
-                        )
-                metadata["structure"] = {
-                    "length": len(value),
-                    "items": entries,
-                    "complete": len(entries) == len(value),
-                }
+            structure = structure_overview(value)
+            if structure is not None:
+                metadata["structure"] = structure
             if parent:
                 metadata["parent_object"] = parent
             (staging / "metadata.json").write_text(json.dumps(metadata))
@@ -147,9 +154,13 @@ def object_io(request):
                 f"Cannot save object ({type(error).__name__}: {error}); use a package-native exporter for unsupported objects."
             ) from error
 
-    def serialize(result):
+    def serialize(result, *, fallback_reason=None):
         saved = []
-        options = request["object_options"]
+        options = (
+            {"--save-object": "automatic-result"}
+            if fallback_reason
+            else request.get("object_options", {})
+        )
         if (
             "--save-updated-object" in options
             and options["--save-updated-object"] not in loaded
@@ -162,7 +173,10 @@ def object_io(request):
         if "--save-updated-object" in options:
             identity = options["--save-updated-object"]
             saved.append(save(loaded[identity], "updated-" + identity, parent=identity))
-        return json.dumps({"saved_objects": saved})
+        response = {"saved_objects": saved}
+        if fallback_reason:
+            response.update(output_format="pickle", reason=fallback_reason)
+        return json.dumps(response)
 
     return load, serialize
 

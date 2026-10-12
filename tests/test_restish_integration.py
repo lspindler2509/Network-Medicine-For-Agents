@@ -426,3 +426,83 @@ class RestishIntegrationTests(unittest.TestCase):
         self.assertIn("limit", limited.stderr.lower())
         records = json.loads(self.run_cli("list-pages", "--rsh-max-pages", "0").stdout)
         self.assertEqual(records, [{"page": 1}, {"page": 2}])
+
+    def test_api_update_stages_native_backend_and_preserves_old_execution(self):
+        import io
+        from netmed.catalog import load
+        from netmed.runtime import source_updates
+        from netmed.runtime.restish import invoke
+
+        with (
+            tempfile.TemporaryDirectory() as temporary,
+            patch.dict(os.environ, self.env),
+        ):
+            root = Path(temporary).resolve()
+            document = {
+                "openapi": "3.0.3",
+                "info": {"title": "Refresh fixture", "version": "1"},
+                "servers": [{"url": self.base}],
+                "paths": {
+                    "/old": {
+                        "get": {
+                            "operationId": "oldOperation",
+                            "responses": {"200": {"description": "Capture"}},
+                        }
+                    }
+                },
+            }
+            spec = root / "old.json"
+            spec.write_text(json.dumps(document))
+            source = {
+                "kind": "openapi",
+                "spec": str(spec),
+                "spec_origin": "https://example.org/openapi.json",
+                "base_url": self.base,
+            }
+            source.update(discover(source, "refresh"))
+            old_config = Path(source["restish"]["config"])
+            old_bytes = old_config.read_bytes()
+            catalog = root / "catalog.json"
+            catalog.write_text(json.dumps({"sources": {"refresh": source}}))
+            before_catalog = catalog.read_bytes()
+            before_backends = set(
+                (Path(self.env["NETMED_DATA_DIR"]) / "restish").iterdir()
+            )
+            document["paths"]["/fresh"] = {
+                "get": {
+                    "operationId": "newOperation",
+                    "responses": {"200": {"description": "Capture"}},
+                }
+            }
+            with patch("netmed.importers.openapi.requests.get") as request:
+                request.return_value.status_code = 200
+                request.return_value.text = json.dumps(document)
+                preview = source_updates.update(
+                    catalog, dry_run=True, use_updates=False, progress=io.StringIO()
+                )
+                self.assertEqual(preview["sources"][0]["status"], "would_update")
+                self.assertEqual(before_catalog, catalog.read_bytes())
+                self.assertEqual(
+                    before_backends,
+                    set((Path(self.env["NETMED_DATA_DIR"]) / "restish").iterdir()),
+                )
+                result = source_updates.update(
+                    catalog, use_updates=False, progress=io.StringIO()
+                )
+            self.assertEqual(result["sources"][0]["status"], "updated")
+            updated = load(catalog)["sources"]["refresh"]
+            with (
+                tempfile.TemporaryFile(mode="w+") as output,
+                tempfile.TemporaryFile(mode="w+") as errors,
+            ):
+                self.assertEqual(
+                    invoke(updated, ["new-operation"], stdout=output, stderr=errors), 0
+                )
+                output.seek(0)
+                self.assertEqual(json.load(output)["path"], "/fresh")
+            old_help = io.StringIO()
+            self.assertEqual(
+                invoke(source, ["--help"], stdout=old_help, stderr=io.StringIO()), 0
+            )
+            self.assertNotIn("new-operation", old_help.getvalue())
+            self.assertEqual(old_bytes, old_config.read_bytes())

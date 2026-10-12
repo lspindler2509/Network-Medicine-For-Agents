@@ -2,10 +2,12 @@
 
 import contextlib
 import importlib
+import json
 import pkgutil
 import sys
-from .objects import ObjectError, object_io, saved_output
+from .objects import ObjectError, object_io, saved_output, structure_overview
 from .callbacks import parse_callback
+from .results import result_serializer
 
 
 def load_modules(module, enabled):
@@ -39,10 +41,13 @@ def invoke(request):
 
     options = request.get("object_options", {})
     with saved_output() if options else contextlib.nullcontext(None) as output:
-        module = importlib.import_module(request["module"])
-        load_modules(module, request.get("submodules", False))
-        configure(module, request.get("setup", []))
         load, serialize = object_io(request)
+        if request.get("action") == "show_object":
+            module = load("@object:" + request["object_id"])
+        else:
+            module = importlib.import_module(request["module"])
+            load_modules(module, request.get("submodules", False))
+            configure(module, request.get("setup", []))
         # Scoped interception of the pinned Fire default parser, not adapters.
         default_parse = fire.parser.DefaultParseValue
 
@@ -52,6 +57,25 @@ def invoke(request):
             if value.startswith("@object:"):
                 return load(value)
             return load(default_parse(value))
+
+        def object_preview(value, reason):
+            structure = structure_overview(value)
+            metadata = dict(request["object_metadata"])
+            if structure is not None:
+                metadata.pop("structure", None)
+            return json.dumps(
+                {
+                    **({"structure": structure} if structure is not None else {}),
+                    "metadata": metadata,
+                    "reason": reason.replace("; saved as a Python object", ""),
+                    "hint": "Explore methods with "
+                    + request["name"]
+                    + " --help; call them with "
+                    + request["name"]
+                    + " - <method> [arguments]",
+                },
+                ensure_ascii=False,
+            )
 
         fire.parser.DefaultParseValue = parse
         try:
@@ -69,7 +93,17 @@ def invoke(request):
                     serialize=save_output,
                 )
             else:
-                fire.Fire(module, command=request["arguments"], name=request["name"])
+                fire.Fire(
+                    module,
+                    command=request["arguments"],
+                    name=request["name"],
+                    serialize=result_serializer(
+                        serialize,
+                        fallback=object_preview
+                        if request.get("action") == "show_object"
+                        else None,
+                    ),
+                )
         except ObjectError as error:
             print(f"Object error: {error}", file=sys.stderr)
             raise SystemExit(1)
