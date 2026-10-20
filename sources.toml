@@ -95,6 +95,21 @@ spec = "https://api.nedrex.net/open/openapi.json"
 # The specification paths already contain /open.
 base_url = "https://api.nedrex.net"
 
+[sources.nedrex_tum]
+description = "Access the REPO4EU NeDRex API instance hosted at TUM (open data), including PPI filters such as methods_score_cutoff, sources and num_sources."
+kind = "openapi"
+spec = "https://exbio.wzw.tum.de/repo4eu_nedrex_open/openapi.json"
+# The specification paths already contain /repo4eu_nedrex_open.
+base_url = "https://exbio.wzw.tum.de"
+
+[sources.nedrex_tum_licensed]
+description = "Access the licensed REPO4EU NeDRex API instance hosted at TUM."
+kind = "openapi"
+spec = "https://exbio.wzw.tum.de/repo4eu_nedrex_licensed/openapi.json"
+base_url = "https://exbio.wzw.tum.de"
+enabled = false
+disabled_reason = "Requires an API key (HTTP 401 without one); netmed does not support credentials. Use nedrex_tum for open data."
+
 # Public GraphQL schemas are discovered via introspection; no provider adapters.
 [sources.opentargets]
 kind = "graphql"
