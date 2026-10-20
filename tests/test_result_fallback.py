@@ -295,6 +295,14 @@ class ResultFallbackTests(unittest.TestCase):
                         )
                 else:
                     self.assertNotEqual(status["exit_code"], 0)
+                # The worker records its terminal state before exiting; wait for the
+                # process to end so its log handle is released (required on Windows).
+                from netmed.runtime.processes import worker_is_active
+
+                deadline = time.monotonic() + 20
+                while worker_is_active(job["pid"], directory):
+                    self.assertLess(time.monotonic(), deadline, "worker did not exit")
+                    time.sleep(0.05)
 
     def test_show_uses_fire_exports_help_and_metadata_without_new_snapshot(self):
         code, output, errors = self.run_worker(
