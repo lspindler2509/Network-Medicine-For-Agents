@@ -115,3 +115,20 @@ class EnvironmentTests(unittest.TestCase):
             manager = UvEnvironmentManager(root=directory)
             with self.assertRaises(ValueError):
                 manager.ensure({"module": "demo", "package": "demo", "dev": True})
+
+
+class RedactedTailTests(unittest.TestCase):
+    def test_uv_diagnostics_keep_reason_and_hide_url_credentials(self):
+        from netmed.runtime.environments import redacted_tail
+
+        text = (
+            "Resolved 3 packages\n"
+            "error: Failed to fetch https://alice:s3cret@index.example.org/simple/x\n"
+            "  Caused by: No solution found for kipoiseq==0.7.1\n"
+        )
+        tail = redacted_tail(text, lines=2)
+        self.assertNotIn("s3cret", tail)
+        self.assertNotIn("alice", tail)
+        self.assertIn("https://***@index.example.org", tail)
+        self.assertIn("No solution found for kipoiseq==0.7.1", tail)
+        self.assertEqual(redacted_tail(""), "")
