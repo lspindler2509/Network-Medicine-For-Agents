@@ -57,6 +57,22 @@ class PythonHelpTests(unittest.TestCase):
         self.assertEqual(source, before)
         self.assertFalse(self.render(source, ["Adapter", "--value=1"])[0])
 
+    def test_call_path_alias_lists_operations_without_definition_group(self):
+        # `tl` is an attribute alias of a module defined as `example.tools`.
+        source = self.source(
+            {
+                "tl.cluster": item("example.tools._cluster"),
+                "tl.rank": item("example.tools._rank"),
+                "other": item("example.other"),
+            }
+        )
+        handled, output = self.render(source, ["tl", "--help"])
+        self.assertTrue(handled)
+        self.assertIn("netmed example tl cluster (value)", output)
+        self.assertIn("netmed example tl rank (value)", output)
+        self.assertNotIn("netmed example other", output)
+        self.assertFalse(self.render(source, ["missing", "--help"])[0])
+
     def test_large_reexported_root_groups_by_definition_and_keeps_call_paths(self):
         source = self.source(
             {f"f{index}": item("example.algorithms.centrality") for index in range(60)}

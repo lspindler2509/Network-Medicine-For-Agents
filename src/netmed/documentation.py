@@ -52,7 +52,9 @@ def pypi_documentation(source):
             "PyPI docs require a distribution name in package; module names may differ"
         )
     normalize = lambda name: re.sub(r"[-_.]+", "-", name).lower()
-    versions = source.get("discovery_metadata", {}).get("packages", {})
+    from .catalog import discovery_metadata
+
+    versions = (discovery_metadata(source) or {}).get("packages", {})
     version = next(
         (
             value

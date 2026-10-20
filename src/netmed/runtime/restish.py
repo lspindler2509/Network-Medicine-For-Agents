@@ -123,6 +123,52 @@ def resolve(source):
     return backend
 
 
+COMMAND_ROW = re.compile(r"^  ([a-z0-9][a-z0-9-]*)(?: +(\S.*))?$")
+
+
+def command_rows(help_text):
+    """Parse (command, summary, group) rows from Restish's API help.
+
+    Command groups are blocks of an unindented heading followed only by
+    indented command rows, before the flag sections; description paragraphs,
+    usage and examples do not have that shape.
+    """
+    rows = []
+    text = help_text.split("\nFlags:", 1)[0]
+    for block in re.split(r"\n\s*\n", text):
+        lines = [line for line in block.splitlines() if line.strip()]
+        if len(lines) < 2 or lines[0].startswith(" "):
+            continue
+        heading = lines[0].strip()
+        if heading.rstrip(":") in ("Usage", "Examples"):
+            continue
+        matches = [COMMAND_ROW.match(line) for line in lines[1:]]
+        if all(matches):
+            rows.extend(
+                (match.group(1), (match.group(2) or "").strip(), heading)
+                for match in matches
+            )
+    return rows
+
+
+def native_commands(source):
+    """Operation commands Restish offers for a source, read from its native help."""
+    backend = resolve(source)
+    if not backend or not Path(backend.get("config", "")).is_file():
+        raise UserError("Restish source configuration is missing; rebuild the catalog")
+    result = subprocess.run(
+        [ensure(), "--rsh-config", backend["config"], backend["source"], "--help"],
+        env=environment(backend["cache"]),
+        stdin=subprocess.DEVNULL,
+        capture_output=True,
+        text=True,
+        timeout=120,
+    )
+    if result.returncode:
+        raise UserError("Restish help is unavailable for this source")
+    return command_rows(result.stdout)
+
+
 def invoke(source, arguments, name="netmed", stdout=None, stderr=None):
     backend = resolve(source)
     if not backend or backend.get("version") != VERSION:

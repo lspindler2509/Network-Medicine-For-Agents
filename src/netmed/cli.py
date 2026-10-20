@@ -38,6 +38,7 @@ Commands:
   sources update [source ...]         Refresh all APIs or only named OpenAPI/GraphQL sources
   sources update [source ...] --dry-run  Preview schema/help changes without activation
   logs [--tail N | --clear]             Show or delete command history
+  find <words> [--source S]            Search operations of all sources (10 results)
   docs <source>                       Show package descriptions or API spec docs
   prepare <source>                    Install/reuse a Python worker environment
   environments                        List prepared Python environments
@@ -79,6 +80,7 @@ Available sources (from the local catalog):
             text += f"  Catalog unavailable: {self.catalog_path}\n  Start with: netmed build sources.toml\n"
         text += """
 Usage:
+  netmed find <what you want to do>          Find operations across sources
   netmed <source> --help                     Find commands
   netmed <source> <operation> --help         Check arguments
   netmed --background <source> <operation>   Start a background job
@@ -194,6 +196,20 @@ def management_arguments(command, arguments):
             action="append",
             help="Discover only this source; repeat for more",
         )
+    elif command == "find":
+        from .search import DEFAULT_LIMIT
+
+        parser.description = (
+            "Keyword search over operations of all sources (names, documentation "
+            "first paragraphs, parameter names and source descriptions)."
+        )
+        parser.add_argument("query", nargs="+", help="Words describing the task")
+        parser.add_argument(
+            "--limit", type=int, default=DEFAULT_LIMIT, help="Results per page"
+        )
+        parser.add_argument("--offset", type=int, default=0, help="Skip results")
+        parser.add_argument("--source", help="Search only this source")
+        parser.add_argument("--json", action="store_true", help="Print JSON")
     elif command in ("prepare", "docs"):
         parser.add_argument(
             "source", help="Source name" if command == "docs" else "Python source name"
@@ -441,6 +457,45 @@ def main():
                     print("Command history deleted.")
                 else:
                     sys.stdout.write(read_commands(selected.tail))
+            elif args.command == "find":
+                from .runtime.source_updates import search_index
+                from .search import PER_SOURCE, search
+
+                selected = management_arguments("find", args.arguments)
+                if selected.limit < 1 or selected.offset < 0:
+                    raise UserError(
+                        "--limit must be positive and --offset not negative"
+                    )
+                query = " ".join(selected.query)
+                results = search(
+                    search_index(args.catalog, use_updates=parser.use_updates),
+                    query,
+                    limit=selected.limit,
+                    offset=selected.offset,
+                    source=selected.source,
+                )
+                if results is None:
+                    raise UserError(
+                        "Search index unavailable for this catalog; rebuild it with netmed build sources.toml"
+                    )
+                if selected.json:
+                    print(json.dumps(results, indent=2, ensure_ascii=False))
+                elif not results:
+                    print(f"No operations found for: {query}")
+                else:
+                    for result in results:
+                        print(f"  {result['call']}")
+                        if result["summary"]:
+                            print(f"    {result['summary']}")
+                    print(
+                        f"\nRanked by keyword relevance; at most {PER_SOURCE} per source "
+                        "unless --source is given. More: --offset "
+                        f"{selected.offset + selected.limit}."
+                    )
+                    print(
+                        "Check arguments before calling: <operation> --help "
+                        "(GraphQL: netmed <source> schema <Type>)."
+                    )
             elif args.command == "docs":
                 selected = management_arguments("docs", args.arguments)
                 source = source_from(

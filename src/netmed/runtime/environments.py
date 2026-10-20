@@ -1,3 +1,5 @@
+import re
+
 """Persistent per-source environments; dependency resolution is delegated to uv."""
 
 import hashlib
@@ -69,6 +71,22 @@ def installation_lock(path, timeout=180):
         path.rmdir()
 
 
+def redacted_tail(text, lines=3):
+    """Last diagnostic lines with URL credentials removed.
+
+    Installer diagnostics can contain index credentials (user:token@host);
+    only the closing lines are shown, with the userinfo part of URLs redacted.
+    """
+    tail = [line.strip() for line in (text or "").splitlines() if line.strip()][-lines:]
+    if not tail:
+        return ""
+    cleaned = [
+        re.sub(r"(?i)(\b[a-z][a-z0-9+.-]*://)[^/@\s]+@", r"\1***@", line)
+        for line in tail
+    ]
+    return ": " + " | ".join(cleaned)
+
+
 class UvEnvironmentManager:
     def __init__(self, root=None, executable=None):
         self.root = Path(root or data_directory())
@@ -91,9 +109,9 @@ class UvEnvironmentManager:
             text=True,
         )
         if result.returncode:
-            # Installer diagnostics can contain index credentials. Do not echo them.
             raise UserError(
                 "uv could not prepare the package environment; check the package requirements and connectivity"
+                + redacted_tail(result.stderr)
             )
 
     def ensure(self, source):

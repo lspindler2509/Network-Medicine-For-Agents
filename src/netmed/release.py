@@ -88,7 +88,9 @@ def export(catalog_path, destination, names=None, *, use_updates=False):
                     "sha256": digest,
                     "target": platform_target(),
                 }
-                metadata = source.get("discovery_metadata")
+                from .catalog import discovery_metadata
+
+                metadata = discovery_metadata(source)
                 if metadata:
                     from .importers.python import discover
 
@@ -135,10 +137,21 @@ def export(catalog_path, destination, names=None, *, use_updates=False):
                 source["spec"] = relative
                 source["restish"] = {"version": VERSION, "source": name}
             result["sources"][name] = source
-        (root / "catalog.json").write_text(json.dumps(result, indent=2) + "\n")
+        from .catalog import write
+
+        write(result, root / "catalog.json")
         manifest["catalog_sha256"] = hashlib.sha256(
             (root / "catalog.json").read_bytes()
         ).hexdigest()
+        from .search import index_path
+
+        # Discovery files are verified through catalog references; the search
+        # index is optional and recorded here when it was built.
+        search = index_path(root / "catalog.json")
+        if search.is_file():
+            manifest["search_index_sha256"] = hashlib.sha256(
+                search.read_bytes()
+            ).hexdigest()
         (root / "manifest.json").write_text(json.dumps(manifest, indent=2) + "\n")
         root.rename(destination)
     return {

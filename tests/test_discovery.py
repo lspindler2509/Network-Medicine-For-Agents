@@ -5,7 +5,11 @@ import unittest
 from pathlib import Path
 from unittest.mock import patch
 from netmed.worker.discovery import discover
-from netmed.worker.invocation import load_modules, configure
+from netmed.worker.invocation import (
+    load_modules,
+    configure,
+    import_requested_submodules,
+)
 from netmed.worker.metadata import package_documentation, package_summary
 from netmed.catalog import build
 from netmed.importers.python import cached_help
@@ -172,6 +176,280 @@ class Tool:
                 for name in list(sys.modules):
                     if name == "fixture_package" or name.startswith("fixture_package."):
                         del sys.modules[name]
+
+    def write_traversal_fixture(self, directory):
+        root = Path(directory) / "traversal_fixture"
+        (root / "sub").mkdir(parents=True)
+        (root / "tests").mkdir()
+        (root / "__init__.py").write_text(
+            "import json\n"
+            "from . import attached as tools\n"
+            "from .unattached import helper\n"
+            'def top():\n    """Top-level function."""\n'
+        )
+        (root / "attached.py").write_text(
+            'def cluster(data):\n    """Cluster observations."""\n'
+        )
+        (root / "unattached.py").write_text(
+            'def helper():\n    """Re-exported helper."""\n'
+            'def align(a, b):\n    """Align two sequences."""\n    return a + b\n'
+        )
+        (root / "sub" / "__init__.py").write_text("")
+        (root / "sub" / "deep.py").write_text(
+            'def nested():\n    """Nested function."""\n'
+        )
+        (root / "_private.py").write_text("def hidden():\n    pass\n")
+        (root / "tests" / "__init__.py").write_text("def test_x():\n    pass\n")
+        (root / "broken.py").write_text("raise ImportError('optional dependency')\n")
+        # Like a moved package: any missing attribute raises ImportError.
+        (root / "moved").mkdir()
+        (root / "moved" / "__init__.py").write_text(
+            "def __getattr__(name):\n    raise ImportError('moved elsewhere')\n"
+        )
+        (root / "moved" / "leaf.py").write_text(
+            "def __getattr__(name):\n    raise ImportError('moved elsewhere')\n"
+        )
+        (root / "exits.py").write_text("import sys\nsys.exit('cli module')\n")
+        return root
+
+    def remove_fixture_modules(self, name):
+        for module in list(sys.modules):
+            if module == name or module.startswith(name + "."):
+                del sys.modules[module]
+
+    def test_discovery_traverses_package_submodules_generically(self):
+        import os
+        import subprocess
+
+        with tempfile.TemporaryDirectory() as directory:
+            self.write_traversal_fixture(directory)
+            result = subprocess.run(
+                [
+                    sys.executable,
+                    str(Path(__file__).parents[1] / "src/netmed/worker/entry.py"),
+                ],
+                input=json.dumps(
+                    {
+                        "action": "discover",
+                        "module": "traversal_fixture",
+                        "traversal_budget": 30,
+                    }
+                ),
+                capture_output=True,
+                text=True,
+                timeout=60,
+                env={**os.environ, "PYTHONPATH": directory},
+            )
+            self.assertEqual(result.returncode, 0, result.stderr)
+            metadata = json.loads(result.stdout)
+            operations = metadata["operations"]
+            # An attached module is listed once under one callable attribute path.
+            aliases = {"attached.cluster", "tools.cluster"} & operations.keys()
+            self.assertEqual(len(aliases), 1)
+            # Unattached and nested submodules are imported and listed.
+            self.assertIn("unattached.align", operations)
+            self.assertIn("sub.deep.nested", operations)
+            # Re-exports appear once, under the shorter path.
+            self.assertIn("helper", operations)
+            self.assertNotIn("unattached.helper", operations)
+            # Private, test and foreign modules are not traversed.
+            self.assertFalse(any(key.startswith("_private") for key in operations))
+            self.assertFalse(any(key.startswith("tests") for key in operations))
+            self.assertFalse(any(key.startswith("json") for key in operations))
+            omitted = {item["name"]: item["reason"] for item in metadata["omitted"]}
+            self.assertEqual(omitted["broken"], "submodule import failed")
+            self.assertEqual(omitted["exits"], "submodule import failed")
+            self.assertNotIn("moved", omitted)
+            self.assertEqual(omitted["json"], "nested/imported module not traversed")
+            # The second name of the attached module is reported as an alias.
+            alias = ({"attached", "tools"} - {next(iter(aliases)).split(".")[0]}).pop()
+            self.assertTrue(omitted[alias].startswith("alias of traversed submodule"))
+
+    def test_importer_retries_without_traversal_after_worker_failure(self):
+        import subprocess
+        from netmed.importers import python as importer
+
+        source = {"module": "example", "discovery_timeout": 10}
+        environment = {"python": "python", "worker": "entry.py", "directory": "."}
+        failed = subprocess.CompletedProcess([], 1, "", "Segmentation fault\n")
+        succeeded = subprocess.CompletedProcess(
+            [], 0, json.dumps({"operations": {"run": {}}, "omitted": []}), ""
+        )
+        with (
+            patch.object(
+                importer.UvEnvironmentManager, "ensure", return_value=environment
+            ),
+            patch.object(
+                importer, "run_discovery", side_effect=[failed, succeeded]
+            ) as run,
+            patch.object(importer.Path, "read_bytes", return_value=b"lock"),
+        ):
+            result = importer.discover(source)
+        self.assertEqual(
+            [call.kwargs["traverse"] for call in run.call_args_list], [True, False]
+        )
+        self.assertIn("run", result["operations"])
+        self.assertEqual(
+            result["omitted"][-1]["reason"],
+            "submodule traversal disabled after discovery failure: Segmentation fault",
+        )
+        with (
+            patch.object(
+                importer.UvEnvironmentManager, "ensure", return_value=environment
+            ),
+            patch.object(importer, "run_discovery", side_effect=[failed, failed]),
+        ):
+            with self.assertRaisesRegex(RuntimeError, "module example"):
+                importer.discover(source)
+
+    def test_explicit_submodules_are_not_depth_or_count_limited(self):
+        from netmed.worker import discovery
+
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory) / "deep_fixture"
+            package = root
+            for part in ("a", "b", "c", "d"):
+                package.mkdir(parents=True, exist_ok=True)
+                (package / "__init__.py").write_text("")
+                package = package / part
+            package.mkdir()
+            (package / "__init__.py").write_text("def leaf():\n    pass\n")
+            sys.path.insert(0, directory)
+            try:
+                module = importlib.import_module("deep_fixture")
+                bounded, _ = discovery.package_submodules(module)
+                complete, _ = discovery.package_submodules(module, bounded=False)
+                self.assertNotIn("a.b.c.d", [path for path, _ in bounded])
+                self.assertIn("a.b.c.d", [path for path, _ in complete])
+                with patch.object(discovery, "SUBMODULE_LIMIT", 1):
+                    limited, notes = discovery.package_submodules(module)
+                    unlimited, _ = discovery.package_submodules(module, bounded=False)
+                self.assertEqual(len(limited), 1)
+                self.assertTrue(any("limit reached" in n["reason"] for n in notes))
+                self.assertEqual(len(unlimited), 4)
+            finally:
+                sys.path.remove(directory)
+                self.remove_fixture_modules("deep_fixture")
+
+    def test_traversal_respects_time_budget(self):
+        import time
+        from netmed.worker.discovery import package_submodules
+
+        with tempfile.TemporaryDirectory() as directory:
+            self.write_traversal_fixture(directory)
+            sys.path.insert(0, directory)
+            try:
+                module = importlib.import_module("traversal_fixture")
+                found, omitted = package_submodules(module, time.monotonic() - 1)
+                paths = [path for path, _ in found]
+                # Already imported modules remain; nothing new is imported.
+                self.assertTrue({"attached", "tools"} & set(paths))
+                self.assertNotIn("sub", paths)
+                self.assertNotIn("traversal_fixture.sub", sys.modules)
+                self.assertIn(
+                    ("sub", "submodule traversal time budget exhausted"),
+                    {(item["name"], item["reason"]) for item in omitted},
+                )
+            finally:
+                sys.path.remove(directory)
+                self.remove_fixture_modules("traversal_fixture")
+
+    def test_invocation_imports_requested_submodules_on_demand(self):
+        with tempfile.TemporaryDirectory() as directory:
+            self.write_traversal_fixture(directory)
+            sys.path.insert(0, directory)
+            try:
+                module = importlib.import_module("traversal_fixture")
+                self.assertNotIn("sub", vars(module))
+                import_requested_submodules(module, ["sub", "deep", "nested", "--x"])
+                self.assertEqual(module.sub.deep.nested.__doc__, "Nested function.")
+                # Unknown names, private names and flags are left to Fire.
+                import_requested_submodules(module, ["missing", "value"])
+                import_requested_submodules(module, ["_private"])
+                self.assertNotIn("_private", vars(module))
+                import_requested_submodules(module, ["--help"])
+                with self.assertRaisesRegex(ImportError, "optional dependency"):
+                    import_requested_submodules(module, ["broken"])
+            finally:
+                sys.path.remove(directory)
+                self.remove_fixture_modules("traversal_fixture")
+
+    def test_fire_arg_spec_tolerates_builtins_without_self(self):
+        from netmed.worker.invocation import tolerant_arg_spec_info
+
+        class ExtensionFunction:
+            """Callable passing isbuiltin without __self__, like Boost.Python."""
+
+            def __call__(self, smiles):
+                return smiles
+
+        extension = ExtensionFunction()
+        original_calls = []
+
+        def original(fn):
+            original_calls.append(fn)
+            return fn, True
+
+        wrapped = tolerant_arg_spec_info(original)
+        with patch(
+            "netmed.worker.invocation.inspect.isbuiltin",
+            side_effect=lambda fn: fn is extension,
+        ):
+            self.assertEqual(wrapped(extension), (extension, False))
+            self.assertEqual(original_calls, [])
+            # Ordinary builtins and other callables keep Fire's behavior.
+            self.assertEqual(wrapped(len), (len, True))
+            self.assertEqual(original_calls, [len])
+
+    def test_failed_discovery_disables_source_for_target_unless_selected(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            config = root / "sources.toml"
+            config.write_text(
+                '[sources.works]\nkind="python"\nmodule="json"\n'
+                '[sources.native]\nkind="python"\nmodule="native"\n'
+            )
+
+            def discover(source):
+                if source["module"] == "native":
+                    raise RuntimeError(
+                        "Package discovery failed for module native (exit code 1); "
+                        "check importability:\nOSError: Library not loaded: libomp.dylib"
+                    )
+                return {"operations": {}}
+
+            with (
+                patch("netmed.importers.python.discover", side_effect=discover),
+                patch(
+                    "netmed.runtime.environments.platform_target",
+                    return_value="darwin-arm64",
+                ),
+                contextlib.redirect_stderr(io.StringIO()) as errors,
+            ):
+                catalog = build(config, root / "catalog.json")
+                self.assertIn("works", catalog["sources"])
+                skipped = catalog["disabled_sources"]["native"]
+                self.assertTrue(skipped["discovery_failed"])
+                self.assertEqual(
+                    skipped["disabled_reason"],
+                    "Discovery failed on darwin-arm64: Package discovery failed for "
+                    "module native (exit code 1); check importability: "
+                    "OSError: Library not loaded: libomp.dylib",
+                )
+                self.assertIn("skipped native", errors.getvalue())
+                with self.assertRaisesRegex(RuntimeError, "module native"):
+                    build(config, root / "selected.json", ["native"])
+                # A nearly full disk is an infrastructure problem, not a skip.
+                with (
+                    patch(
+                        "shutil.disk_usage",
+                        return_value=__import__("shutil")._ntuple_diskusage(
+                            100, 99, 1024
+                        ),
+                    ),
+                    self.assertRaisesRegex(RuntimeError, "Build disk nearly full"),
+                ):
+                    build(config, root / "full.json")
 
     def test_selection_happens_before_discovery_or_installation(self):
         with tempfile.TemporaryDirectory() as directory:

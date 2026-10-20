@@ -1,6 +1,8 @@
+import gzip
 import json
 import hashlib
 import re
+import sys
 import math
 import tomllib
 from pathlib import Path
@@ -19,7 +21,44 @@ RESERVED_COMMANDS = {
     "logs",
     "help",
     "release-bundle",
+    "find",
 }
+
+
+# Below this, a failed source is more likely a full build disk than a package
+# that cannot run on the target; fail instead of disabling sources one by one.
+MINIMUM_FREE_BYTES = 2 * 1024**3
+
+
+def require_disk_space(error):
+    import shutil
+    from .runtime.layout import data_directory
+
+    directory = data_directory()
+    while not directory.exists() and directory != directory.parent:
+        directory = directory.parent
+    free = shutil.disk_usage(directory).free
+    if free < MINIMUM_FREE_BYTES:
+        raise RuntimeError(
+            f"Build disk nearly full ({free // 1024**2} MiB free at {directory}); "
+            "free space instead of disabling sources"
+        ) from error
+
+
+def discovery_failure(source, error):
+    """Disabled-source entry for a Python source whose discovery failed here."""
+    from .runtime.environments import platform_target
+
+    lines = [line.strip() for line in str(error).splitlines() if line.strip()]
+    reason = lines[0] if lines else type(error).__name__
+    if len(lines) > 1:
+        reason += " " + lines[-1]
+    return {
+        **source,
+        "enabled": False,
+        "discovery_failed": True,
+        "disabled_reason": f"Discovery failed on {platform_target()}: {reason[:500]}",
+    }
 
 
 def validate_url(url):
@@ -91,7 +130,22 @@ def build(
             if mode == "build":
                 from .importers.python import discover as discover_python
 
-                item["discovery_metadata"] = discover_python(item)
+                try:
+                    item["discovery_metadata"] = discover_python(item)
+                except Exception as error:
+                    # Native requirements differ per target (e.g. a system OpenMP
+                    # runtime). Without an explicit selection, record the source
+                    # as disabled for this target instead of failing the build.
+                    if names is not None:
+                        raise
+                    require_disk_space(error)
+                    catalog["disabled_sources"][name] = discovery_failure(source, error)
+                    print(
+                        f"Warning: skipped {name}: "
+                        + catalog["disabled_sources"][name]["disabled_reason"],
+                        file=sys.stderr,
+                    )
+                    continue
             item["source_metadata"] = item.get("discovery_metadata", {}).pop(
                 "source_metadata",
                 {
@@ -143,16 +197,181 @@ def build(
         if item.get("execution", "foreground") not in ("foreground", "background"):
             raise ValueError("execution must be foreground or background")
         catalog["sources"][name] = item
-    destination = Path(destination)
-    destination.parent.mkdir(parents=True, exist_ok=True)
-    destination.write_text(json.dumps(catalog, indent=2) + "\n")
+    write(catalog, destination)
     return catalog
+
+
+def discovery_directory(destination):
+    """Per-catalog folder for discovery files, so catalogs can share a directory."""
+    destination = Path(destination)
+    return destination.parent / (destination.stem + "-discovery")
+
+
+def write(catalog, destination):
+    """Write a catalog; Python discovery goes to one gzip file per source.
+
+    The main catalog keeps routing, overview metadata and a small reference
+    (path, checksum, configuration and lock hashes), so loading it stays cheap
+    and only the invoked source's discovery is read. ``catalog`` is not changed.
+    """
+    destination = Path(destination).resolve()
+    destination.parent.mkdir(parents=True, exist_ok=True)
+    folder = discovery_directory(destination)
+    written = {}
+    sources = {}
+    loaded = {}  # discovery already in memory, reused for the search index
+    for name, source in catalog.get("sources", {}).items():
+        item = dict(source)
+        metadata = item.pop("discovery_metadata", None)
+        reference = item.get("discovery_file")
+        if metadata is None and reference:
+            # Not loaded: keep the existing file, relative when it is in this folder.
+            existing = Path(reference["path"])
+            if not existing.is_absolute():
+                existing = destination.parent / existing
+            existing = existing.resolve()
+            if existing.parent == folder.resolve():
+                written[existing.name] = True
+                item["discovery_file"] = {
+                    **reference,
+                    "path": f"{folder.name}/{existing.name}",
+                }
+            else:
+                metadata = discovery_metadata(dict(source))
+        if metadata is not None:
+            content = gzip.compress(
+                json.dumps(
+                    metadata, separators=(",", ":"), ensure_ascii=False
+                ).encode(),
+                mtime=0,
+            )
+            folder.mkdir(exist_ok=True)
+            file = folder / (name + ".json.gz")
+            file.write_bytes(content)
+            written[file.name] = True
+            loaded[name] = metadata
+            item["discovery_file"] = {
+                "path": f"{folder.name}/{file.name}",
+                "sha256": hashlib.sha256(content).hexdigest(),
+                "configuration_hash": metadata.get("configuration_hash"),
+                "lock_sha256": metadata.get("lock_sha256"),
+                "operation_count": len(metadata.get("operations", {})),
+            }
+        sources[name] = item
+    if folder.is_dir():
+        # Remove discovery files of sources no longer in this catalog.
+        for stale in folder.glob("*.json.gz"):
+            if stale.name not in written:
+                stale.unlink()
+    destination.write_text(json.dumps({**catalog, "sources": sources}, indent=2) + "\n")
+    write_search_index(sources, destination, loaded)
+
+
+def write_search_index(sources, destination, loaded=None):
+    """Index all operations of the written catalog for `netmed find`.
+
+    Search is optional: if indexing fails (for example SQLite without FTS5),
+    the catalog stays usable, a warning is printed and no stale index remains.
+    """
+    import sys
+    from .search import (
+        api_documents,
+        graphql_documents,
+        index_path,
+        python_documents,
+        write_index,
+    )
+
+    destination = Path(destination).resolve()
+    loaded = loaded or {}
+
+    def relative(path):
+        path = Path(path)
+        return path if path.is_absolute() else destination.parent / path
+
+    descriptions = {
+        name: item.get("description")
+        or (item.get("source_metadata") or {}).get("summary")
+        or ""
+        for name, item in sources.items()
+    }
+
+    def documents():
+        for name, item in sources.items():
+            try:
+                if item["kind"] == "python" and item.get("discovery_file"):
+                    metadata = loaded.get(name)
+                    if metadata is None:
+                        reference = {
+                            **item["discovery_file"],
+                            "path": str(relative(item["discovery_file"]["path"])),
+                        }
+                        metadata = discovery_metadata({"discovery_file": reference})
+                    yield from python_documents(name, metadata, item["module"])
+                elif item["kind"] == "openapi":
+                    from .runtime.restish import native_commands
+
+                    spec = item["spec"]
+                    if not spec.startswith("https://"):
+                        spec = str(relative(spec))
+                    rows = native_commands({**item, "spec": spec})
+                    yield from api_documents(name, rows)
+                elif item["kind"] == "graphql":
+                    schema = relative(item["graphql"]["schema"])
+                    yield from graphql_documents(name, json.loads(schema.read_text()))
+            except Exception as error:  # one source must not block the catalog
+                print(
+                    f"Search index skips {name}: {type(error).__name__}: {error}",
+                    file=sys.stderr,
+                )
+
+    target = index_path(destination)
+    try:
+        write_index(target, documents(), descriptions)
+    except Exception as error:
+        target.unlink(missing_ok=True)
+        print(
+            f"Search index unavailable ({type(error).__name__}: {error}); "
+            "netmed find is disabled for this catalog",
+            file=sys.stderr,
+        )
+
+
+def discovery_metadata(source):
+    """Return a Python source's discovery metadata, loading its file on demand."""
+    if "discovery_metadata" in source:
+        return source["discovery_metadata"]
+    reference = source.get("discovery_file")
+    if not reference:
+        return None
+    content = Path(reference["path"]).read_bytes()
+    if hashlib.sha256(content).hexdigest() != reference["sha256"]:
+        from .errors import UserError
+
+        raise UserError("Discovery file checksum mismatch; rebuild the catalog")
+    source["discovery_metadata"] = json.loads(gzip.decompress(content))
+    return source["discovery_metadata"]
+
+
+def discovery_hashes(source):
+    """Configuration and lock hashes of the discovery, without loading it."""
+    if "discovery_metadata" in source:
+        metadata = source["discovery_metadata"] or {}
+    else:
+        metadata = source.get("discovery_file") or {}
+    if not metadata:
+        return None
+    return metadata.get("configuration_hash"), metadata.get("lock_sha256")
 
 
 def load(path):
     path = Path(path).resolve()
     catalog = json.loads(path.read_text())
     for source in catalog.get("sources", {}).values():
+        if source.get("discovery_file"):
+            source["discovery_file"]["path"] = str(
+                (path.parent / source["discovery_file"]["path"]).resolve()
+            )
         if source.get("graphql"):
             source["graphql"]["schema"] = str(
                 (path.parent / source["graphql"]["schema"]).resolve()

@@ -5,7 +5,7 @@ from pathlib import Path
 import tempfile
 import unittest
 from unittest.mock import Mock, patch
-from netmed.catalog import load
+from netmed.catalog import discovery_metadata, load
 from netmed.release import export
 from netmed.runtime.environments import UvEnvironmentManager, platform_target
 
@@ -195,13 +195,25 @@ class ReleaseTests(unittest.TestCase):
                     export(catalog, root / "bundle")
                     self.assertEqual(discover.call_count, int(bool(stale)))
                 result = load(root / "bundle/catalog.json")["sources"]["example"]
+                manifest = json.loads((root / "bundle/manifest.json").read_text())
+                index = root / "bundle/catalog-search.sqlite"
                 self.assertEqual(
-                    result["discovery_metadata"]["operations"]["run"]["doc"],
+                    manifest["search_index_sha256"],
+                    hashlib.sha256(index.read_bytes()).hexdigest(),
+                )
+                # Discovery is a relocatable per-source file, loaded on demand.
+                self.assertEqual(
+                    Path(result["discovery_file"]["path"]),
+                    (root / "bundle/catalog-discovery/example.json.gz").resolve(),
+                )
+                self.assertNotIn("discovery_metadata", result)
+                metadata = discovery_metadata(result)
+                self.assertEqual(
+                    metadata["operations"]["run"]["doc"],
                     "Refreshed" if stale else "Original",
                 )
                 self.assertEqual(
-                    result["discovery_metadata"]["configuration_hash"],
-                    python_configuration_hash(result),
+                    metadata["configuration_hash"], python_configuration_hash(result)
                 )
 
     def test_api_build_and_export_use_one_snapshot(self):
