@@ -20,6 +20,7 @@ RESERVED_COMMANDS = {
     "logs",
     "help",
     "release-bundle",
+    "find",
 }
 
 
@@ -166,6 +167,7 @@ def write(catalog, destination):
     folder = discovery_directory(destination)
     written = {}
     sources = {}
+    loaded = {}  # discovery already in memory, reused for the search index
     for name, source in catalog.get("sources", {}).items():
         item = dict(source)
         metadata = item.pop("discovery_metadata", None)
@@ -195,6 +197,7 @@ def write(catalog, destination):
             file = folder / (name + ".json.gz")
             file.write_bytes(content)
             written[file.name] = True
+            loaded[name] = metadata
             item["discovery_file"] = {
                 "path": f"{folder.name}/{file.name}",
                 "sha256": hashlib.sha256(content).hexdigest(),
@@ -209,6 +212,77 @@ def write(catalog, destination):
             if stale.name not in written:
                 stale.unlink()
     destination.write_text(json.dumps({**catalog, "sources": sources}, indent=2) + "\n")
+    write_search_index(sources, destination, loaded)
+
+
+def write_search_index(sources, destination, loaded=None):
+    """Index all operations of the written catalog for `netmed find`.
+
+    Search is optional: if indexing fails (for example SQLite without FTS5),
+    the catalog stays usable, a warning is printed and no stale index remains.
+    """
+    import sys
+    from .search import (
+        api_documents,
+        graphql_documents,
+        index_path,
+        python_documents,
+        write_index,
+    )
+
+    destination = Path(destination).resolve()
+    loaded = loaded or {}
+
+    def relative(path):
+        path = Path(path)
+        return path if path.is_absolute() else destination.parent / path
+
+    descriptions = {
+        name: item.get("description")
+        or (item.get("source_metadata") or {}).get("summary")
+        or ""
+        for name, item in sources.items()
+    }
+
+    def documents():
+        for name, item in sources.items():
+            try:
+                if item["kind"] == "python" and item.get("discovery_file"):
+                    metadata = loaded.get(name)
+                    if metadata is None:
+                        reference = {
+                            **item["discovery_file"],
+                            "path": str(relative(item["discovery_file"]["path"])),
+                        }
+                        metadata = discovery_metadata({"discovery_file": reference})
+                    yield from python_documents(name, metadata, item["module"])
+                elif item["kind"] == "openapi":
+                    from .runtime.restish import native_commands
+
+                    spec = item["spec"]
+                    if not spec.startswith("https://"):
+                        spec = str(relative(spec))
+                    rows = native_commands({**item, "spec": spec})
+                    yield from api_documents(name, rows)
+                elif item["kind"] == "graphql":
+                    schema = relative(item["graphql"]["schema"])
+                    yield from graphql_documents(name, json.loads(schema.read_text()))
+            except Exception as error:  # one source must not block the catalog
+                print(
+                    f"Search index skips {name}: {type(error).__name__}: {error}",
+                    file=sys.stderr,
+                )
+
+    target = index_path(destination)
+    try:
+        write_index(target, documents(), descriptions)
+    except Exception as error:
+        target.unlink(missing_ok=True)
+        print(
+            f"Search index unavailable ({type(error).__name__}: {error}); "
+            "netmed find is disabled for this catalog",
+            file=sys.stderr,
+        )
 
 
 def discovery_metadata(source):

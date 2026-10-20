@@ -46,6 +46,46 @@ def read_overrides():
     return result
 
 
+def catalog_digest(path):
+    return hashlib.sha256(Path(path).read_bytes()).hexdigest()
+
+
+def search_index(catalog_path, *, use_updates=True):
+    """Index `netmed find` reads: the overlay's while it matches the base catalog."""
+    from ..search import index_path
+
+    path = Path(catalog_path).resolve()
+    base = index_path(path)
+    if not use_updates or path != default_catalog().resolve():
+        return base
+    overlay = index_path(directory() / "catalog.json")
+    try:
+        marker = json.loads((directory() / "catalog-search.json").read_text())
+    except (OSError, ValueError):
+        return base
+    # After a CLI upgrade the overlay index would hide new bundled operations.
+    if overlay.is_file() and marker.get("base_catalog_sha256") == catalog_digest(path):
+        return overlay
+    return base
+
+
+def refresh_search_index(path, overlay):
+    """Rebuild the search index after API refreshes changed the active catalog."""
+    from ..catalog import write_search_index
+    from ..search import index_path
+
+    catalog = active_catalog(path, use_updates=overlay)
+    if not overlay:
+        write_search_index(catalog["sources"], path)
+        return
+    target = directory() / "catalog.json"
+    marker = directory() / "catalog-search.json"
+    marker.unlink(missing_ok=True)
+    write_search_index(catalog["sources"], target)
+    if index_path(target).is_file():
+        atomic_json(marker, {"base_catalog_sha256": catalog_digest(path)})
+
+
 def active_catalog(path, *, use_updates=True):
     catalog = load(path)
     if not use_updates or Path(path).resolve() != default_catalog().resolve():
@@ -277,6 +317,7 @@ def update(catalog_path, names=None, *, dry_run=False, use_updates=True, progres
                 root / "catalog.json" if overlay else path,
                 overrides if overlay else catalog,
             )
+            refresh_search_index(path, overlay)
     return {
         "dry_run": dry_run,
         "target": "local API overrides" if overlay else str(path),

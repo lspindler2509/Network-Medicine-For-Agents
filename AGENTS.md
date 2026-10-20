@@ -16,7 +16,7 @@ The current pipeline is:
 4. **Expose commands and help:** The generic CLI routes `netmed <source> ...` to the appropriate runtime. Python execution uses Fire against the actual package; API execution forwards native arguments to the pinned Restish binary. Cached Python help avoids starting a package worker where possible; live Fire help remains available for dynamic interfaces.
 5. **Execute with shared infrastructure:** Dependency provisioning, foreground/background execution and job management apply across sources. Pagination and scientific algorithms remain the responsibility of the underlying package or API; generation does not invent these behaviors.
 
-For agents, overall help exposes available sources, and source/operation help reveals the relevant interface on demand. Do not preload every operation's documentation into the agent's context. The agent chooses tools, supplies their native arguments and decides whether to run a call in the background.
+For agents, overall help exposes available sources, `netmed find` ranks operations across sources by keywords, and source/operation help reveals the relevant interface on demand. Search derives its text only from discovered interfaces and source descriptions; do not add search-specific descriptions, synonyms or per-source tuning. Do not preload every operation's documentation into the agent's context. The agent chooses tools, supplies their native arguments and decides whether to run a call in the background.
 
 Generation is programmatic and does not require an LLM to write adapters. Its coverage depends on the source interface: missing docstrings remain missing documentation, unsupported OpenAPI features need improvements to the generic importer/runtime, and complex Python objects or dynamic interfaces may require explicit handling. Do not claim that discovery makes every exposed function usable or documents undocumented nested parameter schemas.
 
@@ -63,7 +63,6 @@ Catalogs are generated: the built CLI defaults to its installed assets/catalog.j
 ## Architectural boundaries
 
 - Keep source integration generic and configured through TOML. Do not add hardcoded adapters or manually maintained function lists to solve a general discovery problem.
-- Configure a Python source's `module` as its package root. Discovery traverses public package submodules generically (bounded by depth, count and time) and invocation imports a named submodule on demand; do not narrow `module` or list functions to work around incomplete discovery.
 - Configure a Python source's `module` as its package root. Discovery traverses public package submodules generically (bounded by depth, count and time) and invocation imports a named submodule on demand; do not narrow `module` or list functions to work around incomplete discovery.
 - Keep importers responsible for discovery and runtime modules responsible for execution. Python discovery imports packages and inspects their interfaces; it is not an AST-only scan and may execute import-time code.
 - Scientific packages and Fire belong in managed worker environments, not the core CLI dependencies. Compatible source configurations may reuse an environment; dependency isolation is not a security sandbox.

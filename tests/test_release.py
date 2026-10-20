@@ -195,6 +195,12 @@ class ReleaseTests(unittest.TestCase):
                     export(catalog, root / "bundle")
                     self.assertEqual(discover.call_count, int(bool(stale)))
                 result = load(root / "bundle/catalog.json")["sources"]["example"]
+                manifest = json.loads((root / "bundle/manifest.json").read_text())
+                index = root / "bundle/catalog-search.sqlite"
+                self.assertEqual(
+                    manifest["search_index_sha256"],
+                    hashlib.sha256(index.read_bytes()).hexdigest(),
+                )
                 # Discovery is a relocatable per-source file, loaded on demand.
                 self.assertTrue(
                     result["discovery_file"]["path"].endswith(
