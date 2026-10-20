@@ -53,9 +53,9 @@ Windows detachment uses native creation flags; termination uses `taskkill` for t
 | --- | --- |
 | `src/netmed/worker/__init__.py` | Independent package marker; no core imports. |
 | `src/netmed/worker/entry.py` | Direct-script entry point and JSON request dispatch for discover/docs/invoke. |
-| `src/netmed/worker/discovery.py` | Static public-interface introspection. |
+| `src/netmed/worker/discovery.py` | Static public-interface introspection and bounded traversal of package submodules. |
 | `src/netmed/worker/metadata.py` | Installed distribution summaries and descriptions; no checkout README fallback. |
-| `src/netmed/worker/invocation.py` | Package/submodule imports, declarative setup and Fire invocation. |
+| `src/netmed/worker/invocation.py` | Package/submodule imports (eager or on demand for the requested call path), declarative setup and Fire invocation. |
 | `src/netmed/worker/objects.py` | Trusted Pickle loading/saving, selectors, atomic artifact publication and saved-output handling. |
 | `src/netmed/worker/results.py` | Type-agnostic Fire serialization fallback: native output, supported JSON exporters, then snapshot. |
 | `src/netmed/worker/references.py` | Shared pure ID/label resolution; no core dependency or unpickling. |

@@ -3,14 +3,27 @@
 import json
 import hashlib
 import subprocess
+import tempfile
 from pathlib import Path
 from ..runtime.environments import UvEnvironmentManager
 from ..runtime.processes import process_environment
 
 
-def discover(source):
-    environment = UvEnvironmentManager().ensure(source)
-    process = subprocess.run(
+DEFAULT_DISCOVERY_TIMEOUT = 60
+# Share of the discovery timeout available for importing package submodules, so
+# that slow optional submodules shorten traversal instead of failing discovery.
+TRAVERSAL_BUDGET_SHARE = 0.5
+
+
+def run_discovery(environment, source, timeout, traverse):
+    # Imports may create caches in the working directory; keep them out of the
+    # user's project by discovering in a temporary directory.
+    with tempfile.TemporaryDirectory(prefix="netmed-discovery-") as directory:
+        return run_discovery_in(environment, source, timeout, traverse, directory)
+
+
+def run_discovery_in(environment, source, timeout, traverse, directory):
+    return subprocess.run(
         [environment["python"], environment["worker"]],
         input=json.dumps(
             {
@@ -18,18 +31,51 @@ def discover(source):
                 "module": source["module"],
                 "package": source.get("package"),
                 "submodules": source.get("submodules", False),
+                "traversal_budget": timeout * TRAVERSAL_BUDGET_SHARE,
+                "traverse": traverse,
             }
         ),
         text=True,
         capture_output=True,
-        timeout=source.get("discovery_timeout", 60),
+        timeout=timeout,
         env=process_environment(),
+        cwd=directory,
     )
+
+
+def failure_details(process):
+    return "\n".join((process.stderr or "").strip().splitlines()[-5:])
+
+
+def discover(source):
+    environment = UvEnvironmentManager().ensure(source)
+    timeout = source.get("discovery_timeout", DEFAULT_DISCOVERY_TIMEOUT)
+    try:
+        process = run_discovery(environment, source, timeout, traverse=True)
+    except subprocess.TimeoutExpired:
+        process = subprocess.CompletedProcess([], 1, "", "discovery timed out")
+    fallback_note = None
     if process.returncode:
+        # Importing a submodule can terminate the worker (for example a crash in
+        # an extension). Retry with the configured module only, as before
+        # traversal existed, and record why submodules are missing.
+        details = failure_details(process)
+        fallback_note = {
+            "name": "*",
+            "reason": "submodule traversal disabled after discovery failure"
+            + (": " + details.splitlines()[-1] if details else ""),
+        }
+        process = run_discovery(environment, source, timeout, traverse=False)
+    if process.returncode:
+        details = failure_details(process)
         raise RuntimeError(
-            "Package discovery failed; check importability in its worker environment"
+            f"Package discovery failed for module {source['module']} "
+            f"(exit code {process.returncode}); check importability in its worker "
+            "environment" + (f":\n{details}" if details else "")
         )
     result = json.loads(process.stdout)
+    if fallback_note:
+        result["omitted"].append(fallback_note)
     from ..catalog import python_configuration_hash
 
     result["configuration_hash"] = python_configuration_hash(source)
@@ -128,6 +174,14 @@ def cached_help(source, arguments, name):
         for key, item in operations.items()
         if not path or locations[key] == path or locations[key].startswith(path + ".")
     }
+    if path and not selected:
+        # No definition-module group: list operations below this call path, e.g.
+        # an attribute alias such as `tl` for a module defined as `tools`.
+        selected = {
+            key: item for key, item in operations.items() if key.startswith(path + ".")
+        }
+        for key in selected:
+            locations[key] = path
     if path and not selected:
         return False
     visible = (
