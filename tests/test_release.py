@@ -202,10 +202,9 @@ class ReleaseTests(unittest.TestCase):
                     hashlib.sha256(index.read_bytes()).hexdigest(),
                 )
                 # Discovery is a relocatable per-source file, loaded on demand.
-                self.assertTrue(
-                    result["discovery_file"]["path"].endswith(
-                        "catalog-discovery/example.json.gz"
-                    )
+                self.assertEqual(
+                    Path(result["discovery_file"]["path"]),
+                    (root / "bundle/catalog-discovery/example.json.gz").resolve(),
                 )
                 self.assertNotIn("discovery_metadata", result)
                 metadata = discovery_metadata(result)
