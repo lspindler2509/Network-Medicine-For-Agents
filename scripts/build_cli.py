@@ -49,13 +49,22 @@ def main():
     if resources.exists():
         shutil.rmtree(resources)
     locks = args.lock_directory or project / "release-locks" / platform_target()
-    build(
+    catalog = build(
         args.sources,
         cache / "catalog.json",
         args.source,
         snapshot_directory=cache / "specs",
         lock_directory=locks,
     )
+    skipped = {
+        name: item["disabled_reason"]
+        for name, item in catalog["disabled_sources"].items()
+        if item.get("discovery_failed")
+    }
+    for name, reason in skipped.items():
+        # Surface skipped sources prominently in GitHub Actions run summaries.
+        if os.environ.get("GITHUB_ACTIONS") == "true":
+            print(f"::warning title=Source skipped ({name})::{reason}")
     export(cache / "catalog.json", resources, args.source)
     shutil.copy2(project / "LICENSE", resources / "LICENSE")
     licenses = resources / "licenses"
@@ -138,6 +147,7 @@ def main():
             {
                 "executable": str(project / "dist/netmed" / ("netmed" + suffix)),
                 "archive": archive,
+                "skipped_sources": skipped,
             }
         )
     )

@@ -2,6 +2,7 @@ import gzip
 import json
 import hashlib
 import re
+import sys
 import math
 import tomllib
 from pathlib import Path
@@ -22,6 +23,22 @@ RESERVED_COMMANDS = {
     "release-bundle",
     "find",
 }
+
+
+def discovery_failure(source, error):
+    """Disabled-source entry for a Python source whose discovery failed here."""
+    from .runtime.environments import platform_target
+
+    lines = [line.strip() for line in str(error).splitlines() if line.strip()]
+    reason = lines[0] if lines else type(error).__name__
+    if len(lines) > 1:
+        reason += " " + lines[-1]
+    return {
+        **source,
+        "enabled": False,
+        "discovery_failed": True,
+        "disabled_reason": f"Discovery failed on {platform_target()}: {reason[:500]}",
+    }
 
 
 def validate_url(url):
@@ -93,7 +110,21 @@ def build(
             if mode == "build":
                 from .importers.python import discover as discover_python
 
-                item["discovery_metadata"] = discover_python(item)
+                try:
+                    item["discovery_metadata"] = discover_python(item)
+                except Exception as error:
+                    # Native requirements differ per target (e.g. a system OpenMP
+                    # runtime). Without an explicit selection, record the source
+                    # as disabled for this target instead of failing the build.
+                    if names is not None:
+                        raise
+                    catalog["disabled_sources"][name] = discovery_failure(source, error)
+                    print(
+                        f"Warning: skipped {name}: "
+                        + catalog["disabled_sources"][name]["disabled_reason"],
+                        file=sys.stderr,
+                    )
+                    continue
             item["source_metadata"] = item.get("discovery_metadata", {}).pop(
                 "source_metadata",
                 {

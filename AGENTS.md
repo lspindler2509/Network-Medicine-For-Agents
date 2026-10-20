@@ -64,6 +64,7 @@ Catalogs are generated: the built CLI defaults to its installed assets/catalog.j
 
 - Keep source integration generic and configured through TOML. Do not add hardcoded adapters or manually maintained function lists to solve a general discovery problem.
 - Configure a Python source's `module` as its package root. Discovery traverses public package submodules generically (bounded by depth, count and time) and invocation imports a named submodule on demand; do not narrow `module` or list functions to work around incomplete discovery.
+- A source whose discovery fails on a build target is disabled for that target with the error as reason (not when explicitly selected with `--source`). Report skipped sources; do not hide them or add platform-specific source lists.
 - Keep importers responsible for discovery and runtime modules responsible for execution. Python discovery imports packages and inspects their interfaces; it is not an AST-only scan and may execute import-time code.
 - Scientific packages and Fire belong in managed worker environments, not the core CLI dependencies. Compatible source configurations may reuse an environment; dependency isolation is not a security sandbox.
 - Use `runtime/python.py` for both foreground and background Python calls. Do not duplicate request construction in the CLI or job runner.

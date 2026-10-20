@@ -401,6 +401,45 @@ class Tool:
             self.assertEqual(wrapped(len), (len, True))
             self.assertEqual(original_calls, [len])
 
+    def test_failed_discovery_disables_source_for_target_unless_selected(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            config = root / "sources.toml"
+            config.write_text(
+                '[sources.works]\nkind="python"\nmodule="json"\n'
+                '[sources.native]\nkind="python"\nmodule="native"\n'
+            )
+
+            def discover(source):
+                if source["module"] == "native":
+                    raise RuntimeError(
+                        "Package discovery failed for module native (exit code 1); "
+                        "check importability:\nOSError: Library not loaded: libomp.dylib"
+                    )
+                return {"operations": {}}
+
+            with (
+                patch("netmed.importers.python.discover", side_effect=discover),
+                patch(
+                    "netmed.runtime.environments.platform_target",
+                    return_value="darwin-arm64",
+                ),
+                contextlib.redirect_stderr(io.StringIO()) as errors,
+            ):
+                catalog = build(config, root / "catalog.json")
+                self.assertIn("works", catalog["sources"])
+                skipped = catalog["disabled_sources"]["native"]
+                self.assertTrue(skipped["discovery_failed"])
+                self.assertEqual(
+                    skipped["disabled_reason"],
+                    "Discovery failed on darwin-arm64: Package discovery failed for "
+                    "module native (exit code 1); check importability: "
+                    "OSError: Library not loaded: libomp.dylib",
+                )
+                self.assertIn("skipped native", errors.getvalue())
+                with self.assertRaisesRegex(RuntimeError, "module native"):
+                    build(config, root / "selected.json", ["native"])
+
     def test_selection_happens_before_discovery_or_installation(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
