@@ -123,7 +123,7 @@ netmed reactome --help
 netmed reactome get-db-version
 ```
 
-Overall help shows source names, types and short descriptions without importing packages. Use source help to explore the available commands. Python source help lists discovered operations; operation help shows signatures and docstrings. Missing operation help falls back to live Fire. Python submodule paths use spaces, for example `netmed nedrex core get_edges --help`. API command names/arguments use native Restish syntax, including kebab-case names and positional path arguments. Read source help before calling.
+Overall help shows source names, types and short descriptions without importing packages. Discovered Python interfaces are stored per source as gzip-compressed files in `<catalog-stem>-discovery/` next to the catalog and read only for that source's help; keep this folder together with the catalog when copying it. Use source help to explore the available commands. Python source help lists discovered operations; operation help shows signatures and docstrings. Missing operation help falls back to live Fire. Python submodule paths use spaces, for example `netmed nedrex core get_edges --help`. API command names/arguments use native Restish syntax, including kebab-case names and positional path arguments. Read source help before calling.
 
 `docs <source>` loads PyPI descriptions for the configured/resolved package version without installing the package. Local Python sources use installed distribution metadata. API docs read `info`, `tags` and `externalDocs` from the selected specification; the built CLI uses its bundled snapshot. Documentation links are displayed, not fetched. `sources` prints the full catalog as JSON.
 

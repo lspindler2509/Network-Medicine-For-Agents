@@ -132,10 +132,13 @@ def print_operations(operations, name):
 
 
 def cached_help(source, arguments, name):
-    metadata = source.get("discovery_metadata")
-    if not metadata:
-        return False
     if arguments and not any(arg in ("--help", "-h") for arg in arguments):
+        return False
+    from ..catalog import discovery_metadata
+
+    # Loaded only for help requests; ordinary calls never read discovery files.
+    metadata = discovery_metadata(source)
+    if not metadata:
         return False
     tokens = [arg for arg in arguments if arg not in ("--help", "-h", "--full")]
     if any(not token.isidentifier() for token in tokens):

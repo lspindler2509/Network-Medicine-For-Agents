@@ -8,12 +8,10 @@ from ..errors import UserError
 
 
 def prepare(source):
-    metadata = source.get("discovery_metadata")
-    from ..catalog import python_configuration_hash
+    from ..catalog import discovery_hashes, python_configuration_hash
 
-    if metadata and metadata.get("configuration_hash") != python_configuration_hash(
-        source
-    ):
+    hashes = discovery_hashes(source)
+    if hashes and hashes[0] != python_configuration_hash(source):
         raise UserError("Package environment changed; rebuild the catalog")
     return UvEnvironmentManager().ensure(source)
 

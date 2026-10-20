@@ -88,7 +88,9 @@ def export(catalog_path, destination, names=None, *, use_updates=False):
                     "sha256": digest,
                     "target": platform_target(),
                 }
-                metadata = source.get("discovery_metadata")
+                from .catalog import discovery_metadata
+
+                metadata = discovery_metadata(source)
                 if metadata:
                     from .importers.python import discover
 
@@ -135,7 +137,9 @@ def export(catalog_path, destination, names=None, *, use_updates=False):
                 source["spec"] = relative
                 source["restish"] = {"version": VERSION, "source": name}
             result["sources"][name] = source
-        (root / "catalog.json").write_text(json.dumps(result, indent=2) + "\n")
+        from .catalog import write
+
+        write(result, root / "catalog.json")
         manifest["catalog_sha256"] = hashlib.sha256(
             (root / "catalog.json").read_bytes()
         ).hexdigest()

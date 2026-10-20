@@ -1,3 +1,4 @@
+import gzip
 import json
 import hashlib
 import re
@@ -143,16 +144,108 @@ def build(
         if item.get("execution", "foreground") not in ("foreground", "background"):
             raise ValueError("execution must be foreground or background")
         catalog["sources"][name] = item
-    destination = Path(destination)
-    destination.parent.mkdir(parents=True, exist_ok=True)
-    destination.write_text(json.dumps(catalog, indent=2) + "\n")
+    write(catalog, destination)
     return catalog
+
+
+def discovery_directory(destination):
+    """Per-catalog folder for discovery files, so catalogs can share a directory."""
+    destination = Path(destination)
+    return destination.parent / (destination.stem + "-discovery")
+
+
+def write(catalog, destination):
+    """Write a catalog; Python discovery goes to one gzip file per source.
+
+    The main catalog keeps routing, overview metadata and a small reference
+    (path, checksum, configuration and lock hashes), so loading it stays cheap
+    and only the invoked source's discovery is read. ``catalog`` is not changed.
+    """
+    destination = Path(destination).resolve()
+    destination.parent.mkdir(parents=True, exist_ok=True)
+    folder = discovery_directory(destination)
+    written = {}
+    sources = {}
+    for name, source in catalog.get("sources", {}).items():
+        item = dict(source)
+        metadata = item.pop("discovery_metadata", None)
+        reference = item.get("discovery_file")
+        if metadata is None and reference:
+            # Not loaded: keep the existing file, relative when it is in this folder.
+            existing = Path(reference["path"])
+            if not existing.is_absolute():
+                existing = destination.parent / existing
+            existing = existing.resolve()
+            if existing.parent == folder.resolve():
+                written[existing.name] = True
+                item["discovery_file"] = {
+                    **reference,
+                    "path": f"{folder.name}/{existing.name}",
+                }
+            else:
+                metadata = discovery_metadata(dict(source))
+        if metadata is not None:
+            content = gzip.compress(
+                json.dumps(
+                    metadata, separators=(",", ":"), ensure_ascii=False
+                ).encode(),
+                mtime=0,
+            )
+            folder.mkdir(exist_ok=True)
+            file = folder / (name + ".json.gz")
+            file.write_bytes(content)
+            written[file.name] = True
+            item["discovery_file"] = {
+                "path": f"{folder.name}/{file.name}",
+                "sha256": hashlib.sha256(content).hexdigest(),
+                "configuration_hash": metadata.get("configuration_hash"),
+                "lock_sha256": metadata.get("lock_sha256"),
+                "operation_count": len(metadata.get("operations", {})),
+            }
+        sources[name] = item
+    if folder.is_dir():
+        # Remove discovery files of sources no longer in this catalog.
+        for stale in folder.glob("*.json.gz"):
+            if stale.name not in written:
+                stale.unlink()
+    destination.write_text(json.dumps({**catalog, "sources": sources}, indent=2) + "\n")
+
+
+def discovery_metadata(source):
+    """Return a Python source's discovery metadata, loading its file on demand."""
+    if "discovery_metadata" in source:
+        return source["discovery_metadata"]
+    reference = source.get("discovery_file")
+    if not reference:
+        return None
+    content = Path(reference["path"]).read_bytes()
+    if hashlib.sha256(content).hexdigest() != reference["sha256"]:
+        from .errors import UserError
+
+        raise UserError("Discovery file checksum mismatch; rebuild the catalog")
+    source["discovery_metadata"] = json.loads(gzip.decompress(content))
+    return source["discovery_metadata"]
+
+
+def discovery_hashes(source):
+    """Configuration and lock hashes of the discovery, without loading it."""
+    if "discovery_metadata" in source:
+        metadata = source["discovery_metadata"] or {}
+    else:
+        metadata = source.get("discovery_file") or {}
+    if not metadata:
+        return None
+    return metadata.get("configuration_hash"), metadata.get("lock_sha256")
 
 
 def load(path):
     path = Path(path).resolve()
     catalog = json.loads(path.read_text())
     for source in catalog.get("sources", {}).values():
+        if source.get("discovery_file"):
+            source["discovery_file"]["path"] = str(
+                (path.parent / source["discovery_file"]["path"]).resolve()
+            )
         if source.get("graphql"):
             source["graphql"]["schema"] = str(
                 (path.parent / source["graphql"]["schema"]).resolve()

@@ -12,7 +12,7 @@ The current pipeline is:
 
 1. **Declare sources:** TOML specifies a Python package/module (or local package path), or an OpenAPI specification URL/file and API base URL. Optional source configuration supplies versions, submodule discovery and setup calls. No explicit function list is required.
 2. **Build the catalog:** `netmed build sources.toml` validates the registry and runs the appropriate importer. Python discovery provisions a managed environment and introspects public interfaces, signatures and docstrings in the worker. OpenAPI import reads overview metadata and prepares Restish-generated commands from the specification.
-3. **Store interface metadata:** The generated catalog contains routing information and discovered help. It does not contain generated implementations of every scientific function. Python supports lazy discovery as an alternative to the build-time snapshot.
+3. **Store interface metadata:** The generated catalog contains routing information, overview metadata and, per Python source, a reference to a gzip-compressed discovery file in `<catalog-stem>-discovery/` (checksum, configuration and lock hashes). Discovered help is read from that file only when a help request needs it; ordinary calls and overall help never load it. It does not contain generated implementations of every scientific function. Python supports lazy discovery as an alternative to the build-time snapshot.
 4. **Expose commands and help:** The generic CLI routes `netmed <source> ...` to the appropriate runtime. Python execution uses Fire against the actual package; API execution forwards native arguments to the pinned Restish binary. Cached Python help avoids starting a package worker where possible; live Fire help remains available for dynamic interfaces.
 5. **Execute with shared infrastructure:** Dependency provisioning, foreground/background execution and job management apply across sources. Pagination and scientific algorithms remain the responsibility of the underlying package or API; generation does not invent these behaviors.
 
@@ -63,6 +63,7 @@ Catalogs are generated: the built CLI defaults to its installed assets/catalog.j
 ## Architectural boundaries
 
 - Keep source integration generic and configured through TOML. Do not add hardcoded adapters or manually maintained function lists to solve a general discovery problem.
+- Configure a Python source's `module` as its package root. Discovery traverses public package submodules generically (bounded by depth, count and time) and invocation imports a named submodule on demand; do not narrow `module` or list functions to work around incomplete discovery.
 - Configure a Python source's `module` as its package root. Discovery traverses public package submodules generically (bounded by depth, count and time) and invocation imports a named submodule on demand; do not narrow `module` or list functions to work around incomplete discovery.
 - Keep importers responsible for discovery and runtime modules responsible for execution. Python discovery imports packages and inspects their interfaces; it is not an AST-only scan and may execute import-time code.
 - Scientific packages and Fire belong in managed worker environments, not the core CLI dependencies. Compatible source configurations may reuse an environment; dependency isolation is not a security sandbox.
