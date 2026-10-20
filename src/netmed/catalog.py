@@ -25,6 +25,26 @@ RESERVED_COMMANDS = {
 }
 
 
+# Below this, a failed source is more likely a full build disk than a package
+# that cannot run on the target; fail instead of disabling sources one by one.
+MINIMUM_FREE_BYTES = 2 * 1024**3
+
+
+def require_disk_space(error):
+    import shutil
+    from .runtime.layout import data_directory
+
+    directory = data_directory()
+    while not directory.exists() and directory != directory.parent:
+        directory = directory.parent
+    free = shutil.disk_usage(directory).free
+    if free < MINIMUM_FREE_BYTES:
+        raise RuntimeError(
+            f"Build disk nearly full ({free // 1024**2} MiB free at {directory}); "
+            "free space instead of disabling sources"
+        ) from error
+
+
 def discovery_failure(source, error):
     """Disabled-source entry for a Python source whose discovery failed here."""
     from .runtime.environments import platform_target
@@ -118,6 +138,7 @@ def build(
                     # as disabled for this target instead of failing the build.
                     if names is not None:
                         raise
+                    require_disk_space(error)
                     catalog["disabled_sources"][name] = discovery_failure(source, error)
                     print(
                         f"Warning: skipped {name}: "

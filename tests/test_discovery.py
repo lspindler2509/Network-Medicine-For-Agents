@@ -439,6 +439,17 @@ class Tool:
                 self.assertIn("skipped native", errors.getvalue())
                 with self.assertRaisesRegex(RuntimeError, "module native"):
                     build(config, root / "selected.json", ["native"])
+                # A nearly full disk is an infrastructure problem, not a skip.
+                with (
+                    patch(
+                        "shutil.disk_usage",
+                        return_value=__import__("shutil")._ntuple_diskusage(
+                            100, 99, 1024
+                        ),
+                    ),
+                    self.assertRaisesRegex(RuntimeError, "Build disk nearly full"),
+                ):
+                    build(config, root / "full.json")
 
     def test_selection_happens_before_discovery_or_installation(self):
         with tempfile.TemporaryDirectory() as directory:

@@ -69,6 +69,14 @@ jobs:
       - uses: astral-sh/setup-uv@v7
         with:
           version: '0.12.23'
+      - name: Free disk space (Linux runner)
+        # All package environments need more space than the Linux runner offers
+        # by default; remove preinstalled toolchains the build does not use.
+        if: runner.os == 'Linux'
+        run: |
+          df -h /
+          sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc /usr/local/.ghcup /opt/hostedtoolcache/CodeQL
+          df -h /
       - run: uv sync --locked --group build
       - run: uv run --group build python scripts/build_cli.py --lock-directory release-locks/${{ matrix.target }}
       - run: uv run python -m unittest discover -s tests -p test_built_cli.py -v
