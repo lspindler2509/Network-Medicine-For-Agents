@@ -77,7 +77,7 @@ You can give your agent this instruction:
 
 > Install netmed using the installer linked in https://github.com/lspindler2509/Network-Medicine-For-Agents#install-and-start for my operating system. Verify `netmed --help` and `netmed networkx path_graph 4 - number_of_nodes`. Tell me where the CLI and its managed data are stored.
 
-The application folder holds shipped code and executables; mutable environments, jobs, objects and history use a separate user-data directory, configurable once through `NETMED_DATA_DIR`. Development builds and dependency provisioning execute trusted package code; they are not security sandboxes.
+The application folder holds shipped code and executables; mutable environments, jobs, objects and history use a separate user-data directory, configurable once through `NETMED_DATA_DIR`. Development builds and dependency provisioning execute trusted package code; they are not security sandboxes. Each bundle contains `licenses/THIRD_PARTY_NOTICES.md` and the license texts of the components it redistributes (Python runtime and CLI libraries, PyInstaller bootloader, Restish, uv), copied from `third_party/`; update them when those versions change. Packages installed on demand come from their own indexes and keep their own licenses.
 
 ## Build the CLI
 

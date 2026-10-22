@@ -3,7 +3,7 @@
 import argparse
 import hashlib
 import json
-from importlib.metadata import distribution, version as package_version
+from importlib.metadata import distribution
 import os
 from pathlib import Path
 import shutil
@@ -67,17 +67,9 @@ def main():
             print(f"::warning title=Source skipped ({name})::{reason}")
     export(cache / "catalog.json", resources, args.source)
     shutil.copy2(project / "LICENSE", resources / "LICENSE")
-    licenses = resources / "licenses"
-    licenses.mkdir()
+    # License texts of everything the bundle redistributes, kept in third_party/.
+    shutil.copytree(project / "third_party", resources / "licenses")
     graphql_distribution = distribution("graphql-core")
-    shutil.copy2(
-        graphql_distribution.locate_file(
-            "graphql_core-"
-            + package_version("graphql-core")
-            + ".dist-info/licenses/LICENSE"
-        ),
-        licenses / "graphql-core.txt",
-    )
     (resources / "bin").mkdir()
     suffix = ".exe" if os.name == "nt" else ""
     for name, origin in [("restish", restish), ("uv", uv)]:
