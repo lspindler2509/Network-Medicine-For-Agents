@@ -8,6 +8,7 @@ from unittest.mock import Mock, patch
 from netmed.catalog import discovery_metadata, load
 from netmed.release import export
 from netmed.runtime.environments import UvEnvironmentManager, platform_target
+from data_isolation import setUpModule, tearDownModule  # noqa: F401
 
 
 class ReleaseTests(unittest.TestCase):

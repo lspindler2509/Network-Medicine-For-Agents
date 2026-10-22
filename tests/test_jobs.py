@@ -21,6 +21,7 @@ from netmed.runtime.environments import UvEnvironmentManager
 from netmed.runtime.layout import data_directory
 from netmed.runtime.processes import process_environment
 from netmed.runtime import processes
+from data_isolation import setUpModule, tearDownModule  # noqa: F401
 
 
 class JobTests(unittest.TestCase):

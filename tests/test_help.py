@@ -8,6 +8,7 @@ import unittest
 from pathlib import Path
 from unittest.mock import patch
 from netmed.cli import main
+from data_isolation import setUpModule, tearDownModule  # noqa: F401
 
 
 class HelpTests(unittest.TestCase):

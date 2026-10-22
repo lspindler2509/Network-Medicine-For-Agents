@@ -15,6 +15,7 @@ from netmed.search import (
     search,
     write_index,
 )
+from data_isolation import setUpModule, tearDownModule  # noqa: F401
 
 RESTISH_HELP = """An API for accessing the database.
   Indented description text that is not a command.

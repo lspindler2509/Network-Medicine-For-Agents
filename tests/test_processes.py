@@ -9,6 +9,7 @@ from unittest.mock import Mock, patch
 import psutil
 from netmed.runtime import processes
 from netmed.runtime.jobs import launch, active, kill
+from data_isolation import setUpModule, tearDownModule  # noqa: F401
 
 
 class ProcessTests(unittest.TestCase):

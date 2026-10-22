@@ -9,6 +9,7 @@ import unittest
 from unittest.mock import patch
 from netmed.cli import main
 from netmed.runtime.command_log import record_command, read_commands
+from data_isolation import setUpModule, tearDownModule  # noqa: F401
 
 
 class CommandLogTests(unittest.TestCase):
