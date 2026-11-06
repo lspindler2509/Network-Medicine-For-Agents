@@ -79,6 +79,14 @@ You can give your agent this instruction:
 
 The application folder holds shipped code and executables; mutable environments, jobs, objects and history use a separate user-data directory, configurable once through `NETMED_DATA_DIR`. Development builds and dependency provisioning execute trusted package code; they are not security sandboxes. Each bundle contains `licenses/THIRD_PARTY_NOTICES.md` and the license texts of the components it redistributes (Python runtime and CLI libraries, PyInstaller bootloader, Restish, uv), copied from `third_party/`; update them when those versions change. Packages installed on demand come from their own indexes and keep their own licenses.
 
+## Agent skill
+
+The general [netmed skill](skills/netmed/SKILL.md) explains installation, operation
+search with `netmed find`, native help, result handling and background jobs. Copy
+the `skills/netmed/` directory into your agent's configured skills directory, or
+point the agent at its `SKILL.md`. Installing the skill does not install the CLI.
+This is CLI guidance; domain-specific use-case skills can build on it separately.
+
 ## Build the CLI
 
 Supported initial targets: `darwin-arm64`, `windows-amd64`, and `linux-amd64`. Builds automatically select the versioned locks for the current target. Run from the repository root. The build machine needs Python 3.11+ and **uv 0.12.23**; the build dependency group pins PyInstaller 6.22.3. CI uses Python 3.13.3 for the core CLI.

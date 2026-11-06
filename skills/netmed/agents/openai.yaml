@@ -1,0 +1,4 @@
+interface:
+  display_name: "netmed"
+  short_description: "Install netmed and discover scientific CLI operations"
+  default_prompt: "Use $netmed to find and run a suitable scientific CLI operation."
