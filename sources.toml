@@ -119,6 +119,14 @@ endpoint = "https://chat.expasy.org/mcp"
 kind = "mcp"
 endpoint = "https://biocontext-kb.fastmcp.app/mcp"
 
+[sources.noodle_mcp]
+kind = "mcp"
+endpoint = "https://api.helena.bio/noodle/v1/mcp"
+
+[sources.agingresearch_mcp]
+kind = "mcp"
+endpoint = "https://agingresearch.news/api/mcp"
+
 [sources.nedrex_tum]
 description = "Access the REPO4EU NeDRex API instance hosted at TUM (open data), including PPI filters such as methods_score_cutoff, sources and num_sources."
 kind = "openapi"
