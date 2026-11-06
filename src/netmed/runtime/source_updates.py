@@ -17,7 +17,7 @@ from ..errors import UserError
 from .layout import data_directory, default_catalog, asset_directory
 from .environments import installation_lock
 
-API_KINDS = {"openapi", "graphql"}
+API_KINDS = {"openapi", "graphql", "mcp"}
 
 
 def directory():
@@ -141,8 +141,11 @@ def snapshot(content):
 
 
 def schema_digest(source):
-    if source["kind"] == "graphql":
-        from ..graphql.schema import read_snapshot
+    if source["kind"] in ("graphql", "mcp"):
+        if source["kind"] == "graphql":
+            from ..graphql.schema import read_snapshot
+        else:
+            from ..mcp import read_snapshot
 
         document = read_snapshot(source)
     elif source.get("schema_sha256"):
@@ -185,20 +188,23 @@ def refresh(source, name, staging):
             )
         )
     else:
-        from ..importers.graphql import discover
+        if source["kind"] == "graphql":
+            from ..importers.graphql import discover
+        else:
+            from ..importers.mcp import discover
 
         validate_url(source["endpoint"])
-        candidate.update(discover(candidate, name, staging / "graphql"))
+        candidate.update(discover(candidate, name, staging / source["kind"]))
     return candidate
 
 
 def publish_interface(candidate, name):
     keys = ("source_metadata", "operation_count", "schema_sha256")
     interface = {key: candidate[key] for key in keys if key in candidate}
-    if candidate["kind"] == "graphql":
-        reference = dict(candidate["graphql"])
+    if candidate["kind"] in ("graphql", "mcp"):
+        reference = dict(candidate[candidate["kind"]])
         reference["schema"] = snapshot(Path(reference["schema"]).read_bytes())
-        interface["graphql"] = reference
+        interface[candidate["kind"]] = reference
     else:
         from .restish_binary import VERSION
 
@@ -232,7 +238,7 @@ def update(catalog_path, names=None, *, dry_run=False, use_updates=True, progres
             raise UserError(f"Unknown or disabled source: {name}")
         if catalog["sources"][name]["kind"] not in API_KINDS:
             raise UserError(
-                f"Source {name} is Python; sources update supports only OpenAPI and GraphQL. Use build for Python discovery"
+                f"Source {name} is Python; sources update supports only OpenAPI, GraphQL and MCP. Use build for Python discovery"
             )
     root = directory()
     if root.is_symlink():
@@ -277,7 +283,7 @@ def update(catalog_path, names=None, *, dry_run=False, use_updates=True, progres
                     # Restish's local spec-files backend does not reliably report
                     # command counts via api list. Report native query counts only
                     # for GraphQL rather than presenting zero as a real API count.
-                    if original["kind"] == "graphql":
+                    if original["kind"] in ("graphql", "mcp"):
                         result.update(
                             operations_before=original.get("operation_count"),
                             operations_after=candidate.get("operation_count"),

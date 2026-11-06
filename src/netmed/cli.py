@@ -35,7 +35,7 @@ Commands:
   build [sources.toml]                 Prepare sources and generate the catalog
   release-bundle <directory>           Export target-specific catalog and dependency locks
   sources                             Show the full catalog, including disabled sources
-  sources update [source ...]         Refresh all APIs or only named OpenAPI/GraphQL sources
+  sources update [source ...]         Refresh all APIs or only named OpenAPI/GraphQL/MCP sources
   sources update [source ...] --dry-run  Preview schema/help changes without activation
   logs [--tail N | --clear]             Show or delete command history
   find <words> [--source S]            Search operations of all sources (10 results)
@@ -105,6 +105,15 @@ GraphQL sources:
   partial data. Background jobs retain that response in result.txt and fail.
   Pagination is explicit; schemas refresh on build or sources update, not per query.
 
+MCP sources:
+  <source> --help          List tools from the cached server interface.
+  <source> <tool> --help   Show the native input/output JSON schemas.
+  <source> <tool> --arguments '{"name": "value"}'
+  Public HTTPS Streamable HTTP only. Native JSON inputs are schema-validated.
+  Results preserve content/structuredContent/isError; tool errors exit nonzero.
+  Tools may have side effects. No automatic tool-call retries or persistent sessions.
+  Refresh tools with sources update. Auth, stdio and prompts/resources are unsupported.
+
 Python results: automatic output and optional export:
   Automatic output follows this order:
     1. Native text via __str__(), or Fire's output for simple values/containers.
@@ -160,12 +169,12 @@ Python callbacks:
   Results retaining lambdas may not be picklable; copy/materialize explicitly.
 
 Updating API sources:
-  netmed sources update                      Refresh all active OpenAPI/GraphQL sources.
+  netmed sources update                      Refresh all active OpenAPI/GraphQL/MCP sources.
   netmed sources update opentargets dgidb    Refresh only these sources.
   Add --dry-run to fetch/validate and preview changes without activation.
   Python packages and locks are excluded; explicit Python selections are rejected.
   Successful changes update help and execution; failed sources keep their previous interface.
-  Output reports schema changes, GraphQL query counts and per-source failures.
+  Output reports schema changes, GraphQL/MCP operation counts and per-source failures.
   Without --catalog, local API overrides are used automatically for help, calls
   and new jobs. Overrides apply only to matching source definitions.
   Explicit --catalog takes precedence; update writes that writable catalog instead.
@@ -298,7 +307,7 @@ def main():
         prog="netmed",
         add_help=False,
         formatter_class=argparse.RawDescriptionHelpFormatter,
-        description="Discover and run network medicine Python packages, OpenAPI and GraphQL services.\nRead source/operation help first, then execute using the documented arguments.",
+        description="Discover and run network medicine Python packages, OpenAPI, GraphQL and MCP services.\nRead source/operation help first, then execute using the documented arguments.",
     )
     parser.add_argument(
         "-h",
@@ -379,7 +388,7 @@ def main():
                 refresh.add_argument(
                     "sources",
                     nargs="*",
-                    help="OpenAPI/GraphQL source names; omit for all active APIs",
+                    help="OpenAPI/GraphQL/MCP source names; omit for all active APIs",
                 )
                 refresh.add_argument(
                     "--dry-run",
@@ -501,7 +510,7 @@ def main():
                 source = source_from(
                     args.catalog, selected.source, use_updates=parser.use_updates
                 )
-                if source["kind"] in ("openapi", "graphql"):
+                if source["kind"] in ("openapi", "graphql", "mcp"):
                     from .documentation import documentation
 
                     print(
@@ -624,6 +633,10 @@ def main():
                     return invoke(source, arguments, name=f"netmed {command}")
                 elif source["kind"] == "graphql":
                     from .runtime.graphql import invoke
+
+                    return invoke(source, arguments, name=f"netmed {command}")
+                elif source["kind"] == "mcp":
+                    from .runtime.mcp import invoke
 
                     return invoke(source, arguments, name=f"netmed {command}")
                 else:

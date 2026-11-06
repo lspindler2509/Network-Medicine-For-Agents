@@ -289,6 +289,68 @@ Foreground calls wait. An agent may stop a slow call and restart it with `--back
 
 Every invocation, including help and failed calls, appends `[timestamp] command` to `logs.txt`. No environment variables or working directory are logged. History records commands, not results or complete data provenance. Normal output can be piped to terminal utilities such as `tail`; package-specific progress/output formats are preserved.
 
+## Remote MCP sources
+
+MCP sources expose a server's tools through the same discovery, help and execution
+workflow as other netmed sources. For sources included in the installed catalog,
+no `--catalog` option is needed:
+
+```text
+netmed find "search terms" --source <source>
+netmed <source> --help
+netmed <source> <tool> --help
+netmed <source> <tool> --arguments '<JSON object>'
+```
+
+Replace `<source>` and `<tool>` with names shown by the installed CLI. Supply the
+tool's native arguments as a JSON object matching its help. Nested inputs, arrays
+and enums stay JSON rather than being flattened into guessed flags. Inputs are
+validated against the cached schema before calling the server; JSON Schema
+references must be local. Help and search do not connect to the server or execute
+tools.
+
+To add a public MCP server to a registry, declare its endpoint without a Python
+package, OpenAPI specification or hand-written tool wrappers:
+
+```toml
+[sources.example_mcp]
+kind = "mcp"
+endpoint = "https://example.org/mcp"
+timeout = 60
+```
+
+Replace the example URL with the server's actual Streamable HTTP endpoint.
+Build a custom catalog with
+`netmed --catalog ./catalog.json build sources.toml`, then select it with
+`--catalog ./catalog.json` before the command. Registry changes enter the bundled
+default catalog when the CLI is rebuilt; editing TOML does not update an installed
+bundle automatically.
+
+Discovery uses the official MCP Python SDK to negotiate Streamable HTTP and
+retrieve every page of `tools/list`. Tool names, descriptions, input/output
+schemas and annotations are preserved in a checksummed interface snapshot.
+No LLM, provider-specific adapters or manually maintained function lists are used.
+
+Results preserve the MCP envelope: `content`, optional `structuredContent`,
+`isError` and other returned metadata. Image/audio blocks remain encoded in that
+JSON; netmed does not render them or automatically fetch linked resources. Both
+protocol/transport failures and tool results with `isError: true` fail the command.
+Tools can have side effects; server annotations are hints, not authorization.
+Tool calls are not automatically retried by netmed.
+
+Use global `--background` before the source for local jobs. Jobs retain their
+interface snapshot; killing a local job does not guarantee cancellation of remote
+work. `netmed sources update <source>` refreshes the tools, help and search using the
+existing API update mechanism; `--dry-run` previews changes. Release export copies
+the snapshot, but does not freeze remote tool implementations or database contents.
+
+Current scope: public HTTPS Streamable HTTP servers and tools. Authentication,
+local stdio servers, legacy HTTP+SSE transport, prompts, resources and interactive
+sampling/elicitation workflows are not supported. Each invocation opens its own
+session; sessions are not retained across CLI calls. `timeout` bounds the whole
+discovery/call session (default 60 seconds); tool discovery is capped at 100 pages
+and rejects repeated pagination cursors and duplicate tool names.
+
 ## Reuse Python objects
 
 Save a return value when another call needs the actual Python object:

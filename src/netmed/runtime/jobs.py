@@ -201,13 +201,18 @@ def launch(catalog, arguments, directory, *, use_updates=False):
             for key in ("kind", "module", "submodules", "setup")
             if key in source
         }
-    elif source["kind"] == "graphql":
-        from ..graphql.schema import load_schema
+    elif source["kind"] in ("graphql", "mcp"):
+        if source["kind"] == "graphql":
+            from ..graphql.schema import load_schema
 
-        load_schema(source)  # Verify the snapshot before creating/detaching a job.
+            load_schema(source)
+        else:
+            from ..mcp import read_snapshot
+
+            read_snapshot(source)
         execution = {
             key: source[key]
-            for key in ("kind", "endpoint", "timeout", "graphql")
+            for key in ("kind", "endpoint", "timeout", "graphql", "mcp")
             if key in source
         }
     else:
@@ -276,6 +281,16 @@ def worker(root):
                 )
             elif source["kind"] == "graphql":
                 from .graphql import invoke
+
+                code = invoke(
+                    source,
+                    arguments[1:],
+                    name="netmed " + initial["tool"],
+                    stdout=output,
+                    stderr=errors,
+                )
+            elif source["kind"] == "mcp":
+                from .mcp import invoke
 
                 code = invoke(
                     source,

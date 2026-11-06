@@ -1,6 +1,6 @@
 ---
 name: netmed
-description: "Install and use the netmed CLI to discover and run scientific Python packages, OpenAPI services and GraphQL queries. Use for netmed setup, operation search, native arguments, result export, saved objects and background jobs."
+description: "Install and use the netmed CLI to discover and run scientific Python packages, OpenAPI services, GraphQL queries and remote MCP tools. Use for netmed setup, operation search, native arguments, result export, saved objects and background jobs."
 ---
 
 # netmed
@@ -77,6 +77,14 @@ Avoid loading the complete catalog's documentation into context.
   `netmed <source> query '<query>' --variables '<JSON>'`. Search results containing
   `...` are navigation hints, not executable queries. Supply required arguments
   and valid selections. Queries are read-only; handle pagination explicitly.
+- **MCP:** inspect `netmed <source> <tool> --help` for the server's native JSON
+  Schema, then call `netmed <source> <tool> --arguments '<JSON object>'`. Names and
+  arguments are discovered automatically. Public remote Streamable HTTP tools are
+  supported; login, local stdio servers and prompts/resources are not. Tools may
+  have side effects; annotations do not grant permission. Results retain MCP
+  `content`, optional `structuredContent` and `isError`; a tool error fails the
+  command even if transport succeeded. `sources update <source>` refreshes the
+  cached interface. Check installed help because older bundles may lack MCP.
 
 For OpenAPI calls, distinguish the server's media type from CLI rendering:
 

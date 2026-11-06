@@ -95,6 +95,30 @@ spec = "https://api.nedrex.net/open/openapi.json"
 # The specification paths already contain /open.
 base_url = "https://api.nedrex.net"
 
+[sources.hippie]
+kind = "mcp"
+endpoint = "https://cbdm-01.zdv.uni-mainz.de/hippienew/mcp"
+
+[sources.opentargets_mcp]
+kind = "mcp"
+endpoint = "https://mcp.platform.opentargets.org/mcp"
+
+[sources.gwas_mcp]
+kind = "mcp"
+endpoint = "https://www.ebi.ac.uk/gwas/mcp"
+
+[sources.ols_mcp]
+kind = "mcp"
+endpoint = "https://www.ebi.ac.uk/ols4/api/mcp"
+
+[sources.expasy_mcp]
+kind = "mcp"
+endpoint = "https://chat.expasy.org/mcp"
+
+[sources.biocontext_mcp]
+kind = "mcp"
+endpoint = "https://biocontext-kb.fastmcp.app/mcp"
+
 [sources.nedrex_tum]
 description = "Access the REPO4EU NeDRex API instance hosted at TUM (open data), including PPI filters such as methods_score_cutoff, sources and num_sources."
 kind = "openapi"

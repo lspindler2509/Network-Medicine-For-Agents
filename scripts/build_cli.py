@@ -76,6 +76,7 @@ def main():
         shutil.copy2(origin, resources / "bin" / (name + suffix))
     manifest = json.loads((resources / "manifest.json").read_text())
     manifest["graphql_core_version"] = graphql_distribution.version
+    manifest["mcp_sdk_version"] = distribution("mcp").version
     manifest["uv_version"] = version
     manifest["native_sha256"] = {
         path.name: hashlib.sha256(path.read_bytes()).hexdigest()

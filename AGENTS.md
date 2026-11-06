@@ -187,10 +187,22 @@ automatic pagination, mutations or subscriptions in the current scope.
 ## API source refresh
 
 `runtime/source_updates.py` owns explicit `sources update [names...] [--dry-run]`.
-Only OpenAPI/GraphQL sources participate. Preserve original remote OpenAPI URLs in
+Only OpenAPI/GraphQL/MCP sources participate. Preserve original remote OpenAPI URLs in
 spec_origin when building/exporting snapshots. Reuse importers and native Restish
 validation in isolated staging; dry-run must not activate interfaces or alter live
 backend caches. Publish immutable snapshots and atomically activate only successful
 changes. Keep old job references valid and never retry user queries automatically.
 Default CLI routing uses API-only overrides bound to matching source definitions;
 explicit --catalog bypasses overrides. Keep Python versions/locks outside refresh.
+
+## MCP backend
+
+Public remote MCP sources use the official MCP SDK over Streamable HTTP.
+Keep discovery in `importers/mcp.py`, protocol/snapshots in `mcp.py` and execution
+in `runtime/mcp.py`. Derive tools, help and search from `tools/list`; never add
+provider-specific tool wrappers or flatten arbitrary JSON Schema into guessed
+arguments. Validate native JSON inputs, preserve the MCP result envelope and fail
+on `isError` as well as transport/protocol errors. Cache checksummed immutable
+interfaces for help, jobs, refresh and release export. Current scope excludes
+auth, stdio, legacy SSE, prompts/resources and interactive client capabilities.
+Do not treat server tool annotations as permission or retry tool calls automatically.

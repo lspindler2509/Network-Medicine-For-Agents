@@ -11,6 +11,10 @@ from .runtime.processes import process_environment
 
 
 def documentation(source):
+    if source["kind"] == "mcp":
+        from .mcp import read_snapshot
+
+        return read_snapshot(source)
     if source["kind"] == "openapi":
         from .importers.openapi import documentation as api_documentation
 

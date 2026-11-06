@@ -174,8 +174,11 @@ def build(
                 item.update(discover(item, name, document=document))
             else:
                 item.update(discover(item, name))
-        elif item["kind"] == "graphql":
-            from .importers.graphql import discover as discover_graphql
+        elif item["kind"] in ("graphql", "mcp"):
+            if item["kind"] == "graphql":
+                from .importers.graphql import discover as discover_remote
+            else:
+                from .importers.mcp import discover as discover_remote
 
             validate_url(item["endpoint"])
             timeout = item.get("timeout", 60)
@@ -187,11 +190,11 @@ def build(
             ):
                 raise ValueError("timeout must be a finite positive number")
             directory = (
-                Path(snapshot_directory) / "graphql"
+                Path(snapshot_directory) / item["kind"]
                 if snapshot_directory is not None
-                else Path(destination).resolve().parent / "graphql-schemas"
+                else Path(destination).resolve().parent / (item["kind"] + "-schemas")
             )
-            item.update(discover_graphql(item, name, directory))
+            item.update(discover_remote(item, name, directory))
         else:
             raise ValueError(f"Unsupported source kind: {item['kind']}")
         if item.get("execution", "foreground") not in ("foreground", "background"):
@@ -319,6 +322,15 @@ def write_search_index(sources, destination, loaded=None):
                 elif item["kind"] == "graphql":
                     schema = relative(item["graphql"]["schema"])
                     yield from graphql_documents(name, json.loads(schema.read_text()))
+                elif item["kind"] == "mcp":
+                    from .mcp import read_snapshot
+                    from .search import mcp_documents
+
+                    reference = {
+                        **item["mcp"],
+                        "schema": str(relative(item["mcp"]["schema"])),
+                    }
+                    yield from mcp_documents(name, read_snapshot({"mcp": reference}))
             except Exception as error:  # one source must not block the catalog
                 print(
                     f"Search index skips {name}: {type(error).__name__}: {error}",
@@ -372,10 +384,11 @@ def load(path):
             source["discovery_file"]["path"] = str(
                 (path.parent / source["discovery_file"]["path"]).resolve()
             )
-        if source.get("graphql"):
-            source["graphql"]["schema"] = str(
-                (path.parent / source["graphql"]["schema"]).resolve()
-            )
+        for kind in ("graphql", "mcp"):
+            if source.get(kind):
+                source[kind]["schema"] = str(
+                    (path.parent / source[kind]["schema"]).resolve()
+                )
         if source.get("lock"):
             source["lock"]["path"] = str(
                 (path.parent / source["lock"]["path"]).resolve()

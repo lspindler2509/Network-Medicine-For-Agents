@@ -46,7 +46,7 @@ def export(catalog_path, destination, names=None, *, use_updates=False):
         manifest = {
             "target": platform_target(),
             "locks": {},
-            "api_specs": "Bundled OpenAPI and GraphQL schema snapshots; remote database contents are not pinned.",
+            "api_specs": "Bundled OpenAPI, GraphQL and MCP interface snapshots; remote database contents are not pinned.",
         }
         for name in selected:
             source = copy.deepcopy(catalog["sources"][name])
@@ -113,15 +113,18 @@ def export(catalog_path, destination, names=None, *, use_updates=False):
                     metadata["configuration_hash"] = python_configuration_hash(source)
                     metadata["lock_sha256"] = digest
                 manifest["locks"][name] = {"sha256": digest, "python": actual}
-            elif source["kind"] == "graphql":
-                from .graphql.schema import read_snapshot
+            elif source["kind"] in ("graphql", "mcp"):
+                if source["kind"] == "graphql":
+                    from .graphql.schema import read_snapshot
+                else:
+                    from .mcp import read_snapshot
 
                 document = read_snapshot(source)
                 (root / "schemas").mkdir(exist_ok=True)
                 relative = f"schemas/{name}.json"
                 content = json.dumps(document, ensure_ascii=False).encode()
                 (root / relative).write_bytes(content)
-                source["graphql"] = {
+                source[source["kind"]] = {
                     "schema": relative,
                     "sha256": hashlib.sha256(content).hexdigest(),
                 }

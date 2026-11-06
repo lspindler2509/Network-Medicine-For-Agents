@@ -76,6 +76,19 @@ def api_documents(name, rows):
         yield (name, f"netmed {name} {command}", f"{command} {group}", summary, "")
 
 
+def mcp_documents(name, document):
+    import shlex
+
+    for tool in document["tools"]:
+        yield (
+            name,
+            f"netmed {name} {shlex.quote(tool['name'])}",
+            tool["name"],
+            first_paragraph(tool.get("description")),
+            " ".join(tool["inputSchema"].get("properties", {})),
+        )
+
+
 def unwrap(type_reference):
     while type_reference and type_reference.get("ofType"):
         type_reference = type_reference["ofType"]

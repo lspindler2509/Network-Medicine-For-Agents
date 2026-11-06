@@ -31,6 +31,14 @@ The registry describes sources. Discovery produces routing/help metadata, not ge
 
 ## Runtime
 
+MCP sources use `importers/mcp.py` for automatic tool discovery, `mcp.py` for
+the official SDK transport and checksummed snapshots, and `runtime/mcp.py` for
+schema-based help, JSON argument validation and invocation. `search.py` indexes
+the server's tool names/descriptions/parameter names. Foreground and background
+calls share the runtime. Release export and API refresh preserve immutable MCP
+interface snapshots just as for GraphQL. Only public HTTPS Streamable HTTP tools
+are supported; no provider-specific wrappers or MCP-to-OpenAPI conversion occurs.
+
 | File | Responsibility |
 | --- | --- |
 | `src/netmed/runtime/__init__.py` | Package marker. |
