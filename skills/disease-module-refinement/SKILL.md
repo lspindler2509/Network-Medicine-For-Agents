@@ -18,7 +18,8 @@ continue in the web interface at any point by giving the Drugst.One links.
 ## Tools and conventions
 
 ```sh
-netmed drugstone new_task --help          # all drugstone algorithms (parameters dict)
+netmed docs drugstone                     # algorithms and parameters ("Available Parameters")
+netmed drugstone new_task --help          # signature only
 netmed drugstone network --help           # pruning, plots, OmniPath overlay, stored networks
 netmed drugstone fetching --help          # datasets, tissues/expression, pathway networks
 netmed nedrex --help                      # DIAMOnD, DOMINO, ROBUST, MuST, TrustRank, validation
@@ -39,7 +40,12 @@ netmed nedrex --help                      # DIAMOnD, DOMINO, ROBUST, MuST, Trust
   ```
 
   Later calls read parts with selectors such as `'@object:fn["network"]["nodes"]'`.
-  `netmed objects show <label>` prints a saved dict as `key: JSON` lines.
+  `netmed objects show <label>` prints a saved dict as `key: JSON` lines; redirect
+  large outputs to a file instead of printing them into the context.
+- Results of expression, `adjacentDrugs` and `adjacentDisorders` use internal protein
+  IDs (`p…`, several per symbol); map them back through the nodes' `drugstoneId`.
+  `isSeed` in a result marks that task's input nodes, so keep the original seed list
+  yourself.
 - **Task links:** after each task give the user
   `https://drugst.one/standalone?taskId=<token>` (or the standalone page of the
   server in use) together with the algorithm and parameters, and keep a running list
@@ -89,10 +95,16 @@ starting over:
 Propose the expansion method and let the user choose:
 
 - **First neighbours + SPD pruning** (hypothesis-free):
-  `"algorithm": "first-neighbor", "target": "drug-target"`. Each node gets
-  `properties` with `degreeInNetwork`, `degreeInPpi` and `spd` (subnetwork
-  participation degree = degree in the module / degree in the PPI), plus `layer`,
-  `cellularComponent` and `isReviewed`.
+  `"algorithm": "first-neighbor", "target": "drug-target"`. The result contains the
+  subnetwork induced by the seeds and all their neighbours in `networkInitial`. Each
+  node gets `properties` with `degreeInNetwork`, `degreeInPpi` and `spd`
+  (subnetwork participation degree = degree in the module / degree in the PPI),
+  plus `layer` and `cellularComponent`. Seeds keep all their neighbours, so their SPD
+  should be 1. With more than 250 nodes the server also prunes automatically:
+  `network` then holds the nodes with the highest SPD below 250 nodes, and `cutoff`
+  plus `automaticCutoff: true` record that cutoff. Tell the user both sizes. With
+  many or highly connected seeds the task can take tens of minutes and the result
+  is large; start it with `netmed --background` and poll `netmed jobs <id>`.
 - **Connector algorithms** adding few proteins between seeds: `multisteiner`,
   `keypathwayminer`, or `trustrank`/`closeness` with `"target": "drug-target"`.
 - **Module detection on NeDRex**: `nedrex diamond`, `domino`, `robust`, `must`
@@ -106,23 +118,37 @@ Report the size of the candidate module and its task link.
 Show the distribution before choosing a cutoff. Write the plot to a file the user can
 open and display it (send the image, or give its path):
 
-```sh
-netmed drugstone network get_pruning_distribution '@object:fn["network"]["nodes"]' spd --path=<dir>/spd_distribution.png --cutoff=<proposed>
-```
-
-The result also contains bins and `sorted_values`. Propose a cutoff with its rule
-(e.g. keep nodes at or above the 80th percentile of SPD, as in [Elbatreek et al. 2020](https://doi.org/10.1371/journal.pbio.3000885)), and state how many
-nodes and which seeds each candidate cutoff keeps or removes. Let the user choose or
-adjust; re-plot with the new cutoff if asked. Then prune:
+Use the complete first-neighbour network (`networkInitial`), not the automatically
+pruned `network`, for the distribution and for percentile rules:
 
 ```sh
-netmed drugstone network prune_network '@object:fn["network"]' spd --cutoff=<c> --save-object pruned
-netmed drugstone network update_result_network <token> '@object:pruned["prunedNetwork"]' --cutoff=<c>
+netmed drugstone network get_pruning_distribution '@object:fn["networkInitial"]["nodes"]' spd --path=<dir>/spd_distribution.png --cutoff=<proposed> > <dir>/spd_distribution.txt
 ```
 
-`update_result_network` replaces the network stored with the task, as the web
-interface does after pruning, so the task link shows the pruned module (it
-overwrites the previous network of that task). Ask whether isolated proteins should
+The text output contains `count`, `min`, `max`, bins and all `sorted_values` (large:
+read the values from the file). Propose a cutoff with its rule (e.g. keep nodes at
+or above the 80th percentile of SPD, as in [Elbatreek et al. 2020](https://doi.org/10.1371/journal.pbio.3000885)),
+and include the automatic cutoff as a candidate. State how many nodes and which
+seeds each candidate keeps or removes. Seeds should not be pruned: if a seed has
+SPD < 1 or a node has SPD > 1, the PPI degree is inconsistent with the network
+(report it, keep the seeds and treat SPD values with care). Let the user choose or
+adjust; re-plot with the new cutoff if asked. Then prune within the task, as the web
+interface does: prune the complete network, recalculate the statistics on the
+pruned module and write it back to the task:
+
+```sh
+netmed drugstone network prune_network '@object:fn["networkInitial"]' spd --cutoff=<c> --save-object pruned
+netmed drugstone network recalculate_statistics '@object:pruned["prunedNetwork"]' '{"identifier": "symbol", "interactionProteinProtein": "<ppi>", "interactionDrugProtein": "<pdi>", "licensedDatasets": False}' --save-object pruned_nodes
+netmed drugstone network update_result_network <token> '{"nodes": "@object:pruned_nodes", "edges": "@object:pruned[\"prunedNetwork\"][\"edges\"]"}' --cutoff=<c>
+```
+
+`recalculate_statistics` needs both datasets in its config (it selects the server's
+graph file by them); with a custom PPI add `"custom_edges": True,
+"exclude_drugstone_ppi_edges": True`. `update_result_network` replaces the network
+stored with the task, so the task link shows the pruned module; it overwrites the
+previous network of that task and removes the automatic-cutoff flag. Very large
+networks can fail in `prune_network` (HTTP 502); then prune `network` instead if the
+chosen cutoff is at or above the automatic one. Ask whether isolated proteins should
 go (`prune_orphan_nodes=True`): an isolated seed is a result (not connected to the
 mechanism) and is better kept visible. Other numeric or categorical node properties
 can be pruned the same way (`unique_values` for categories), e.g. `degreeInPpi`.
@@ -177,7 +203,10 @@ netmed drugstone new_task '<refined symbols>' '{"algorithm": "trustrank", "targe
   `score_raw` and its targets in `hasEdgesTo`.
 - Alternatives on request: `closeness`, `degree`, `proximity` (drugstone), or
   `adjacentDrugs` for drugs that directly target module proteins (raw `pdis` link
-  internal drug `dr…` and protein `p…` IDs). Comparing TrustRank with direct
+  internal drug `dr…` and protein `p…` IDs). `adjacentDrugs` and
+  `adjacentDisorders` run without a server task, so they have no token or link, and
+  `adjacentDrugs` may return non-approved drugs despite
+  `"includeNonApprovedDrugs": False`; filter on `status`. Comparing TrustRank with direct
   targets shows which candidates act on module members and which only reach
   the module through the network.
 - Check every candidate's targets. Network ranking favours promiscuous drugs that
