@@ -154,7 +154,7 @@ Python snapshots: save and reuse:
   Explore with: netmed objects show <id-or-label> --help
   Export with:  netmed objects show <id-or-label> - to_csv --index=False
   --save-updated-object <id-or-label> saves a modified input under a new ID.
-  Inputs too large for the command line (about 1 MB on macOS, 32 KB on Windows):
+  Inputs too large for the command line (macOS ~1 MB, Linux 128 KB, Windows 32 KB):
     netmed objects import edges.json --label ppi    (or "-" to read stdin)
   then pass '@object:ppi', also inside dict/list arguments. Only JSON is imported.
 

@@ -370,7 +370,7 @@ The label is descriptive; references use the returned ID. Objects are stored sep
 
 ### Import JSON inputs
 
-Command-line arguments are limited (about 1 MB on macOS and Linux, 32 KB on Windows). Import larger inputs, such as a network edge list, from a JSON file or from stdin (`-`) and reference them with `@object:`, also inside dictionary or list arguments:
+Command-line arguments are limited (about 1 MB in total on macOS, 128 KB per argument on Linux, 32 KB on Windows). Import larger inputs, such as a network edge list, from a JSON file or from stdin (`-`) and reference them with `@object:`, also inside dictionary or list arguments:
 
 ```bash
 netmed objects import edges.json --label ppi
