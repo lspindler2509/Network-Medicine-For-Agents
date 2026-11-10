@@ -1,0 +1,4 @@
+interface:
+  display_name: "nedrex-ppi"
+  short_description: "Query NeDRex protein-protein interactions through netmed"
+  default_prompt: "Use $nedrex-ppi to download filtered NeDRex PPI edges with netmed."
