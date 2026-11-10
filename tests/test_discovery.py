@@ -185,6 +185,7 @@ class Tool:
             "import json\n"
             "from . import attached as tools\n"
             "from .unattached import helper\n"
+            "from .shadowed import shadowed\n"
             'def top():\n    """Top-level function."""\n'
         )
         (root / "attached.py").write_text(
@@ -193,6 +194,11 @@ class Tool:
         (root / "unattached.py").write_text(
             'def helper():\n    """Re-exported helper."""\n'
             'def align(a, b):\n    """Align two sequences."""\n    return a + b\n'
+        )
+        # The function re-exported under its module's name hides the module.
+        (root / "shadowed.py").write_text(
+            'def shadowed():\n    """Shadowing function."""\n'
+            'def inner():\n    """Hidden by the function."""\n'
         )
         (root / "sub" / "__init__.py").write_text("")
         (root / "sub" / "deep.py").write_text(
@@ -252,6 +258,9 @@ class Tool:
             # Re-exports appear once, under the shorter path.
             self.assertIn("helper", operations)
             self.assertNotIn("unattached.helper", operations)
+            # A submodule hidden by an attribute of its name is not callable by path.
+            self.assertIn("shadowed", operations)
+            self.assertFalse(any(key.startswith("shadowed.") for key in operations))
             # Private, test and foreign modules are not traversed.
             self.assertFalse(any(key.startswith("_private") for key in operations))
             self.assertFalse(any(key.startswith("tests") for key in operations))
@@ -260,6 +269,10 @@ class Tool:
             self.assertEqual(omitted["broken"], "submodule import failed")
             self.assertEqual(omitted["exits"], "submodule import failed")
             self.assertNotIn("moved", omitted)
+            self.assertEqual(
+                omitted["shadowed"],
+                "submodule shadowed by an attribute of the same name",
+            )
             self.assertEqual(omitted["json"], "nested/imported module not traversed")
             # The second name of the attached module is reported as an alias.
             alias = ({"attached", "tools"} - {next(iter(aliases)).split(".")[0]}).pop()

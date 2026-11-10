@@ -183,6 +183,17 @@ def package_submodules(module, deadline=None, bounded=True):
                     or name in NON_API_SUBMODULES
                 ):
                     continue
+                if name in vars(parent):
+                    # E.g. a package re-exporting a function under its module's
+                    # name: Fire resolves the attribute, so the submodule's
+                    # members are not reachable under this call path.
+                    omitted.append(
+                        {
+                            "name": (prefix + "." if prefix else "") + name,
+                            "reason": "submodule shadowed by an attribute of the same name",
+                        }
+                    )
+                    continue
                 if deadline is not None and time.monotonic() > deadline:
                     omitted.append(
                         {
