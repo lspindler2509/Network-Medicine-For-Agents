@@ -45,6 +45,7 @@ Commands:
   objects [id-or-label] [--full]       List objects or inspect metadata/path
   objects show <id-or-label> [- ...]   Load a snapshot; inspect/export using native Fire
   objects clean [id ...] [--dry-run]   Delete saved objects independently of jobs
+  objects import <file|-> --label L    Save JSON as an object, e.g. large inputs
   clean --all [--dry-run]              Delete managed data subfolders; keep other contents
   jobs [job-id]                       List jobs or inspect one job's status
   jobs active                         Check recorded background worker processes
@@ -153,6 +154,9 @@ Python snapshots: save and reuse:
   Explore with: netmed objects show <id-or-label> --help
   Export with:  netmed objects show <id-or-label> - to_csv --index=False
   --save-updated-object <id-or-label> saves a modified input under a new ID.
+  Inputs too large for the command line (about 1 MB on macOS, 32 KB on Windows):
+    netmed objects import edges.json --label ppi    (or "-" to read stdin)
+  then pass '@object:ppi', also inside dict/list arguments. Only JSON is imported.
 
 Passing objects between Python environments:
   Pickle snapshots preserve types, but do not carry their dependencies.
@@ -551,6 +555,22 @@ def main():
                             "Usage: netmed objects show <id-or-label> [- <method> [arguments]]"
                         )
                     return objects.show(args.arguments[1], args.arguments[2:])
+                if args.arguments[:1] == ["import"]:
+                    sub = argparse.ArgumentParser(
+                        prog="netmed objects import",
+                        description="Save a JSON file as an object for @object arguments, e.g. inputs too large for the command line.",
+                    )
+                    sub.add_argument("path", help='JSON file, or "-" for stdin')
+                    sub.add_argument(
+                        "--label", required=True, help="Label for @object:<label>"
+                    )
+                    selected = sub.parse_args(args.arguments[1:])
+                    print(
+                        json.dumps(
+                            objects.import_json(selected.path, selected.label), indent=2
+                        )
+                    )
+                    return 0
 
                 sub = argparse.ArgumentParser(
                     prog="netmed objects",

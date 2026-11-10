@@ -37,10 +37,7 @@ def object_io(request):
     """Keep object code in the standalone worker where scientific classes exist."""
     import pickle
     import re
-    import shutil
-    import uuid
     from pathlib import Path
-    from datetime import datetime, timezone
 
     root = Path(request["objects_root"])
     loaded = {}
@@ -117,42 +114,19 @@ def object_io(request):
         return result
 
     def save(value, label, parent=None):
-        if root.is_symlink():
-            raise ObjectError("Objects root must not be a symlink")
-        root.mkdir(parents=True, exist_ok=True, mode=0o700)
-        identity = uuid.uuid4().hex
-        staging = root / (".tmp-" + identity)
-        staging.mkdir(mode=0o700)
-        try:
-            with (staging / "object.pkl").open("wb") as stream:
-                pickle.dump(value, stream, protocol=4)
-            metadata = {
-                "id": identity,
-                "label": label,
-                "type": type(value).__module__ + "." + type(value).__qualname__,
-                "source": request["module"],
-                "created_at": datetime.now(timezone.utc).isoformat(timespec="seconds"),
-                "environment_id": request["environment_id"],
-                "arguments": request["original_arguments"],
-                "input_objects": list(loaded),
-                "packages": {
-                    dist.metadata["Name"]: dist.version
-                    for dist in importlib.metadata.distributions()
-                },
-            }
-            structure = structure_overview(value)
-            if structure is not None:
-                metadata["structure"] = structure
-            if parent:
-                metadata["parent_object"] = parent
-            (staging / "metadata.json").write_text(json.dumps(metadata))
-            staging.rename(root / identity)
-            return {key: metadata[key] for key in ("id", "label", "type")}
-        except Exception as error:
-            shutil.rmtree(staging)
-            raise ObjectError(
-                f"Cannot save object ({type(error).__name__}: {error}); use a package-native exporter for unsupported objects."
-            ) from error
+        metadata = {
+            "source": request["module"],
+            "environment_id": request["environment_id"],
+            "arguments": request["original_arguments"],
+            "input_objects": list(loaded),
+            "packages": {
+                dist.metadata["Name"]: dist.version
+                for dist in importlib.metadata.distributions()
+            },
+        }
+        if parent:
+            metadata["parent_object"] = parent
+        return publish(root, value, label, metadata)
 
     def serialize(result, *, fallback_reason=None):
         saved = []
@@ -179,6 +153,66 @@ def object_io(request):
         return json.dumps(response)
 
     return load, serialize
+
+
+def publish(root, value, label, metadata):
+    """Pickle a value with its metadata and publish the object directory atomically."""
+    import pickle
+    import shutil
+    import uuid
+    from datetime import datetime, timezone
+
+    if root.is_symlink():
+        raise ObjectError("Objects root must not be a symlink")
+    root.mkdir(parents=True, exist_ok=True, mode=0o700)
+    identity = uuid.uuid4().hex
+    staging = root / (".tmp-" + identity)
+    staging.mkdir(mode=0o700)
+    try:
+        with (staging / "object.pkl").open("wb") as stream:
+            pickle.dump(value, stream, protocol=4)
+        metadata = {
+            "id": identity,
+            "label": label,
+            "type": type(value).__module__ + "." + type(value).__qualname__,
+            "created_at": datetime.now(timezone.utc).isoformat(timespec="seconds"),
+            **metadata,
+        }
+        structure = structure_overview(value)
+        if structure is not None:
+            metadata["structure"] = structure
+        (staging / "metadata.json").write_text(json.dumps(metadata))
+        staging.rename(root / identity)
+        return {key: metadata[key] for key in ("id", "label", "type")}
+    except Exception as error:
+        shutil.rmtree(staging)
+        raise ObjectError(
+            f"Cannot save object ({type(error).__name__}: {error}); use a package-native exporter for unsupported objects."
+        ) from error
+
+
+def import_json(root, data, label, origin):
+    """Save JSON bytes as a built-in object; JSON never executes code, unlike external Pickle."""
+    import hashlib
+
+    try:
+        value = json.loads(data)
+    except ValueError as error:
+        raise ObjectError(f"Cannot import {origin}: invalid JSON ({error})") from error
+    return publish(
+        root,
+        value,
+        label,
+        {
+            "source": "netmed objects import",
+            "environment_id": None,
+            "arguments": [],
+            "input_objects": [],
+            "packages": {},
+            "imported_from": origin,
+            "sha256": hashlib.sha256(data).hexdigest(),
+        },
+    )
 
 
 @contextlib.contextmanager

@@ -74,6 +74,33 @@ def clean(ids, dry_run=False):
     }
 
 
+def import_json(path, label):
+    """Save a local JSON file, or stdin with "-", as an object for @object arguments."""
+    import sys
+    from ..worker.objects import import_json as save_json
+
+    if (
+        not label
+        or "/" in label
+        or "\\" in label
+        or re.fullmatch(r"[0-9a-f]{32}", label)
+    ):
+        raise UserError(
+            "--label must be a name without slashes that is not an object ID"
+        )
+    if path == "-":
+        data, origin = sys.stdin.buffer.read(), "stdin"
+    else:
+        try:
+            data, origin = Path(path).read_bytes(), Path(path).name
+        except OSError as error:
+            raise UserError(f"Cannot read {path}: {error.strerror}") from error
+    try:
+        return {"saved_objects": [save_json(directory_for(), data, label, origin)]}
+    except ObjectError as error:
+        raise UserError(str(error)) from error
+
+
 def execution_options(arguments):
     args, options = [], {}
     iterator = iter(arguments)
@@ -115,6 +142,11 @@ def show(value, arguments):
     from .processes import process_environment
 
     metadata = inspect_object(value)
+    if "imported_from" in metadata:
+        raise UserError(
+            "Imported JSON objects have no source environment; inspect them with "
+            "netmed objects <id-or-label> or pass them as @object arguments"
+        )
     identity = metadata.get("environment_id", "")
     if not isinstance(identity, str) or not re.fullmatch(r"[0-9a-f]{24}", identity):
         raise UserError("Snapshot has no valid original environment reference")

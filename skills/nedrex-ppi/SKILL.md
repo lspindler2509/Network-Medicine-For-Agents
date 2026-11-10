@@ -1,20 +1,21 @@
 ---
 name: nedrex-ppi
-description: "Query protein-protein interactions (PPIs) from NeDRex through the netmed CLI: evidence and quality filters, paging, background jobs for large downloads and conversion to edge lists. Use when an agent needs NeDRex PPI edges, for example as a custom PPI for network analyses."
+description: "Query protein-protein interactions (PPIs) from NeDRex through the netmed CLI: evidence and quality filters, paging, complete edge-list downloads as saved objects and background jobs. Use when an agent needs NeDRex PPI edges, for example as a custom PPI for network analyses."
 ---
 
 # NeDRex PPIs through netmed
 
-Read the `netmed` skill first for general CLI usage. This skill covers the two
+Read the `netmed` skill first for general CLI usage. This skill covers the
 NeDRex PPI operations and how to use them for large downloads.
 
 ```sh
 netmed nedrex ppi ppis --help
 netmed nedrex ppi iter_ppis --help
+netmed nedrex ppi ppi_network --help
 ```
 
 This skill describes `nedrex` 0.2.0. Check the help before calling: if `iter_ppis`
-is missing, the installed netmed ships an older `nedrex` without these filters.
+or `ppi_network` is missing, the installed netmed ships an older `nedrex`.
 
 ## Operations
 
@@ -22,8 +23,13 @@ is missing, the installed netmed ships an older `nedrex` without these filters.
   `limit` is capped by the server's pagination limit
   (`netmed nedrex core get_pagination_limit`, 10000 on api.nedrex.net).
 - `iter_ppis(evidence=('exp',), ..., page_size=None, skip=0, max_records=None)`
-  pages through **all** matching edges with the same filters. Use it for
-  complete downloads; bound test runs with `max_records`.
+  pages through **all** matching edges with the same filters, with all fields.
+  Bound test runs with `max_records`.
+- `ppi_network(evidence=('exp',), ..., compact=False)` downloads all matching edges
+  like `iter_ppis` but returns only the protein pairs: UniProt accessions without the
+  `uniprot.` prefix, undirected, deduplicated, without self-loops. `compact=True`
+  returns `{"nodes": [...], "edges": [[i, j], ...]}` with positions in `nodes`.
+  Use it when the PPI is the input of another tool.
 
 netmed prints each edge as one JSON line. Redirect stdout to a file; progress
 messages go to stderr.
@@ -79,29 +85,24 @@ The edges are in the job's `result.txt` (see `netmed jobs <job-id>`), stderr in
 a stopped job leaves a partial file. Restarting a download starts from the
 beginning; use `skip` to continue after the last complete page if needed.
 
-## Converting to an edge list
+## Using the PPI as input of another tool
 
-For tools that take `{"from", "to"}` edges (e.g. drugstone `custom_edges` with
-`"identifier": "uniprot"`), strip the prefix, drop self-loops and deduplicate
-undirected pairs with a short script:
+Save the edge list as an object instead of printing it; the complete PPI is too
+large for a command-line argument. `@object:` references also work inside dict
+arguments:
 
-```python
-import json, sys
-
-edges = set()
-for line in open(sys.argv[1]):
-    if not line.startswith("{"):
-        continue
-    e = json.loads(line)
-    a = e["memberOne"].removeprefix("uniprot.")
-    b = e["memberTwo"].removeprefix("uniprot.")
-    if a != b:
-        edges.add(tuple(sorted((a, b))))
-json.dump([{"from": a, "to": b} for a, b in sorted(edges)], open(sys.argv[2], "w"))
+```sh
+netmed --background nedrex ppi ppi_network --evidence='["exp"]' --reviewed_proteins='[True]' --compact=True --save-object nedrex_ppi
+netmed jobs <job-id>                     # wait for completed; the result names the object
+netmed drugstone new_task '["P04637"]' '{"algorithm": "trustrank", "identifier": "uniprot", "custom_edges": "@object:nedrex_ppi", "exclude_drugstone_ppi_edges": True}' --quiet=True
 ```
 
-The converted list of that download is about 40 MB. It is too large for a command-line
-argument (about 1 MB on macOS), so it cannot be passed to another netmed call directly.
+The compact form of all experimental edges between reviewed proteins is about 14 MB
+(19,000 proteins, 1.1 million edges). drugstone accepts the compact form only from
+servers that support it; the `{"from", "to"}` form of the complete PPI (about 40 MB)
+exceeds the 25 MB request limit of drugstone servers. Pass `compact=False` for tools that need
+`{"from", "to"}` edges. If edges were downloaded with `iter_ppis` instead, convert them
+with a script and import the JSON with `netmed objects import <file> --label <label>`.
 
 Report the filters, the NeDRex instance (`netmed docs nedrex`, package
 version) and the edge count with any result that uses the downloaded PPI.

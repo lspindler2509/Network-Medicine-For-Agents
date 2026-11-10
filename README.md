@@ -368,6 +368,18 @@ The label is descriptive; references use the returned ID. Objects are stored sep
 
 `--save-object LABEL` saves the final return value after Fire method chains; progress goes to stderr and stdout contains saved-object metadata. If a function mutates its input and returns None, use `--save-updated-object <id>` to save the loaded input under a new ID. Original snapshots stay unchanged. Background jobs support the same options. Cleaning jobs does not delete objects, and object cleanup does not protect inputs needed by active jobs.
 
+### Import JSON inputs
+
+Command-line arguments are limited (about 1 MB on macOS and Linux, 32 KB on Windows). Import larger inputs, such as a network edge list, from a JSON file or from stdin (`-`) and reference them with `@object:`, also inside dictionary or list arguments:
+
+```bash
+netmed objects import edges.json --label ppi
+convert_edges.py | netmed objects import - --label ppi
+netmed drugstone new_task '["P04637"]' '{"algorithm": "trustrank", "identifier": "uniprot", "custom_edges": "@object:ppi"}'
+```
+
+Only JSON is accepted; it is stored as built-in lists, dictionaries, strings, numbers, booleans and None, which every environment can load. The CLI process saves the object without a package environment. Metadata records the file name (not its directory) and the SHA-256 of the imported bytes; `objects show` is not available for imported objects because they have no source environment.
+
 Required classes must be importable in the destination environment; version differences are not automatically rejected or reconciled. Only use trusted locally generated objects: Pickle loading executes reconstruction code. Graphs, arrays and DataFrames can often be saved; live generators, open connections and some file-backed objects/callbacks cannot. Normal output can consume iterators progressively; iterators are not automatically materialized or saved. Other non-printable results use the conditional JSON/snapshot fallback described below. Use the package's own loaders/converters/exporters through its CLI instead. Dependencies do not become CLI sources automatically; configure another package explicitly if its interface is needed.
 
 For a small callback, an explicit quoted lambda is supported:

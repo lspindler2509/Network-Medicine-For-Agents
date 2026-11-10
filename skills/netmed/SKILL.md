@@ -146,6 +146,15 @@ the object's classes; otherwise export portable lists/dictionaries or files in
 the original source. Do not install arbitrary dependencies based on a snapshot.
 Only load trusted netmed snapshots. Live iterators/connections may not be savable.
 
+Arguments are limited in size (about 1 MB on macOS/Linux, 32 KB on Windows). Pass
+larger inputs, e.g. edge lists, as imported JSON objects; `@object:` references also
+work inside dict/list arguments:
+
+```sh
+netmed objects import edges.json --label ppi      # or "-" to read stdin
+netmed drugstone new_task '["P04637"]' '{"identifier": "uniprot", "custom_edges": "@object:ppi"}'
+```
+
 ## Longer work and result checks
 
 Global options such as `--catalog` and `--background` go **before** the source.

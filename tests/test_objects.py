@@ -298,3 +298,59 @@ with w.saved_output() as output:
         self.assertEqual(options, {"--save-object": "graph"})
         with self.assertRaises(ValueError):
             objects.execution_options(["--save-object"])
+
+    def test_import_json_file_and_stdin_as_reusable_objects(self):
+        with (
+            tempfile.TemporaryDirectory() as directory,
+            patch.dict(os.environ, {"NETMED_DATA_DIR": directory}),
+        ):
+            source = Path(directory) / "edges.json"
+            value = {"nodes": ["A", "B"], "edges": [[0, 1]]}
+            source.write_text(json.dumps(value))
+            info = objects.import_json(str(source), "ppi")["saved_objects"][0]
+            self.assertEqual(info["type"], "builtins.dict")
+            metadata = objects.inspect_object("ppi")
+            self.assertEqual(metadata["imported_from"], "edges.json")
+            self.assertIsNone(metadata["environment_id"])
+            self.assertEqual(metadata["structure"]["length"], 2)
+            self.assertIn(directory, metadata["path"])
+            self.assertNotIn(str(source.parent), metadata["imported_from"])
+            request = {
+                "objects_root": str(objects.directory_for()),
+                "module": "example",
+                "environment_id": "env",
+                "original_arguments": [],
+            }
+            load, _ = worker.object_io(request)
+            self.assertEqual(
+                load({"custom_edges": "@object:ppi", "n": "@object:ppi['nodes']"}),
+                {"custom_edges": value, "n": ["A", "B"]},
+            )
+            with self.assertRaisesRegex(ValueError, "no source environment"):
+                objects.show("ppi", [])
+            with patch("sys.stdin") as stdin:
+                stdin.buffer.read.return_value = b"[1, 2]"
+                saved = objects.import_json("-", "numbers")["saved_objects"][0]
+            self.assertEqual(
+                objects.inspect_object(saved["id"])["imported_from"], "stdin"
+            )
+            self.assertEqual(len(objects.list_objects()), 2)
+
+    def test_import_rejects_invalid_json_labels_and_missing_files(self):
+        with (
+            tempfile.TemporaryDirectory() as directory,
+            patch.dict(os.environ, {"NETMED_DATA_DIR": directory}),
+        ):
+            bad = Path(directory) / "bad.json"
+            bad.write_text("{'single': 'quotes'}")
+            with self.assertRaisesRegex(ValueError, "invalid JSON"):
+                objects.import_json(str(bad), "bad")
+            for label in ("", "a/b", "0" * 32):
+                with self.assertRaisesRegex(ValueError, "--label"):
+                    objects.import_json(str(bad), label)
+            with self.assertRaisesRegex(ValueError, "Cannot read"):
+                objects.import_json(str(Path(directory) / "missing.json"), "x")
+            self.assertFalse(
+                objects.directory_for().exists()
+                and any(objects.directory_for().iterdir())
+            )
