@@ -1,0 +1,4 @@
+interface:
+  display_name: "disease-module-refinement"
+  short_description: "Refine network-medicine disease modules and repurpose drugs through netmed"
+  default_prompt: "Use $disease-module-refinement to build and refine a disease module from my seed genes and rank drug candidates with netmed."
