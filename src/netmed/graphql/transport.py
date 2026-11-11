@@ -4,6 +4,14 @@ import requests
 from ..errors import UserError
 
 
+class StatusError(UserError):
+    """A locally described failure that keeps the HTTP status code."""
+
+    def __init__(self, message, status_code):
+        super().__init__(message)
+        self.status_code = status_code
+
+
 def post(source, query, variables=None, operation_name=None):
     body = {"query": query}
     if variables is not None:
@@ -22,8 +30,9 @@ def post(source, query, variables=None, operation_name=None):
     try:
         payload = response.json()
     except ValueError as error:
-        raise UserError(
-            f"GraphQL endpoint returned non-JSON output (HTTP {response.status_code})"
+        raise StatusError(
+            f"GraphQL endpoint returned non-JSON output (HTTP {response.status_code})",
+            response.status_code,
         ) from error
     if not isinstance(payload, dict) or not (
         "data" in payload or isinstance(payload.get("errors"), list)

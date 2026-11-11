@@ -7,13 +7,24 @@ import tempfile
 from pathlib import Path
 from graphql import build_client_schema, get_introspection_query, assert_valid_schema
 from ..errors import UserError
-from ..graphql.transport import post
+from ..graphql.transport import StatusError, post
+from .retry import retry_transient
 
 
 def discover(source, name, directory):
     # Use the baseline standard query for compatibility with older servers.
     # New optional introspection features are deliberately not required.
-    payload, status = post(source, get_introspection_query(descriptions=True))
+    query = get_introspection_query(descriptions=True)
+
+    def introspect():
+        payload, status = post(source, query)
+        if status >= 500:
+            raise StatusError(
+                f"GraphQL introspection failed for {name} (HTTP {status})", status
+            )
+        return payload, status
+
+    payload, status = retry_transient(introspect)
     if not 200 <= status < 300 or payload.get("errors"):
         raise UserError(
             f"GraphQL introspection failed for {name} (HTTP {status}); no schema-file fallback is supported"

@@ -3,25 +3,23 @@
 from pathlib import Path
 import hashlib
 import json
-import time
 import yaml
 import requests
 from ..catalog import validate_url
 from ..errors import UserError
 
 
-def fetch_spec(spec, attempts=3, delay=5):
+def fetch_spec(spec):
     """GET a specification; retry only transient network/server failures."""
-    for attempt in range(1, attempts + 1):
-        try:
-            response = requests.get(spec, timeout=(30, 120), allow_redirects=False)
-        except (requests.ConnectionError, requests.Timeout):
-            if attempt == attempts:
-                raise
-        else:
-            if response.status_code < 500 or attempt == attempts:
-                return response
-        time.sleep(delay * attempt)
+    from .retry import retry_transient
+
+    def get():
+        response = requests.get(spec, timeout=(30, 120), allow_redirects=False)
+        if response.status_code >= 500:
+            response.raise_for_status()
+        return response
+
+    return retry_transient(get)
 
 
 def load_document(spec):

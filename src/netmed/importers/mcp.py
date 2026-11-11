@@ -3,11 +3,16 @@
 import hashlib
 from pathlib import Path
 
+from ..errors import UserError
 from ..mcp import exchange
+from .retry import retry_transient
 
 
 def discover(source, name, directory):
-    document = exchange(source)
+    # tools/list is read-only; the SDK reports all failures as one UserError.
+    document = retry_transient(
+        lambda: exchange(source), lambda error: isinstance(error, UserError)
+    )
     from ..runtime.source_updates import atomic_bytes, json_bytes
 
     content = json_bytes(document)

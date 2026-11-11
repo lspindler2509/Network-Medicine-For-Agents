@@ -28,6 +28,7 @@ The registry describes sources. Discovery produces routing/help metadata, not ge
 | `src/netmed/importers/__init__.py` | Package marker. |
 | `src/netmed/importers/python.py` | Provisions the discovery environment, invokes worker introspection and renders cached help. No scientific package imports in the core. |
 | `src/netmed/importers/openapi.py` | Reads JSON/YAML specifications, validates the supported OpenAPI version, extracts overview/docs and delegates operation discovery to Restish. No custom request serializer. |
+| `src/netmed/importers/retry.py` | Retries read-only interface discovery (specifications, GraphQL introspection, MCP tool lists) up to three times after timeouts, connection errors or HTTP 5xx, so a brief provider outage does not abort a build. User queries are never retried. |
 
 ## Runtime
 
@@ -95,6 +96,7 @@ Application code/resources stay in the installed bundle; mutable state uses NETM
 | --- | --- |
 | `tests/test_core.py` | Registry/OpenAPI import boundaries and generic docs behavior. |
 | `tests/test_discovery.py` | Worker introspection, callable instances, metadata, submodules and setup. |
+| `tests/test_discovery_retry.py` | Transient discovery failures are retried; client errors and local bugs are not. |
 | `tests/test_environments.py` | Environment identities, install failure/reuse, editable inputs and child environment. |
 | `tests/test_python_runtime.py` | Shared Python invocation and catalog compatibility. |
 | `tests/test_documentation.py` | PyPI/local metadata documentation without accidental installation or checkout fallback. |
