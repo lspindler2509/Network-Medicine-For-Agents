@@ -64,7 +64,7 @@ class HelpTests(unittest.TestCase):
                 self.assertEqual(main(), 0)
                 request.assert_called_once_with(
                     "https://example.org/openapi.json",
-                    timeout=30,
+                    timeout=(30, 120),
                     allow_redirects=False,
                 )
             self.assertIn("Gene queries", out.getvalue())
