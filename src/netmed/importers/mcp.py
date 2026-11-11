@@ -1,7 +1,6 @@
 """Discover remote MCP tools without provider-specific adapters."""
 
 import hashlib
-import json
 from pathlib import Path
 
 from ..mcp import exchange
@@ -9,12 +8,12 @@ from ..mcp import exchange
 
 def discover(source, name, directory):
     document = exchange(source)
-    content = (json.dumps(document, indent=2, ensure_ascii=False) + "\n").encode()
+    from ..runtime.source_updates import atomic_bytes, json_bytes
+
+    content = json_bytes(document)
     digest = hashlib.sha256(content).hexdigest()
     path = Path(directory).resolve() / f"{name}-{digest}.json"
-    from ..runtime.source_updates import atomic_json
-
-    atomic_json(path, document)
+    atomic_bytes(path, content)
     return {
         "mcp": {"schema": str(path), "sha256": digest},
         "operation_count": len(document["tools"]),

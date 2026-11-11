@@ -105,17 +105,26 @@ def active_catalog(path, *, use_updates=True):
     return catalog
 
 
-def atomic_json(path, value):
+def json_bytes(value):
+    """Canonical UTF-8 bytes with LF line endings on every platform."""
+    return (json.dumps(value, indent=2, ensure_ascii=False) + "\n").encode("utf-8")
+
+
+def atomic_bytes(path, content):
     path = Path(path)
     path.parent.mkdir(parents=True, exist_ok=True)
     descriptor, temporary = tempfile.mkstemp(dir=path.parent, suffix=".tmp")
     try:
-        with os.fdopen(descriptor, "w") as output:
-            json.dump(value, output, indent=2, ensure_ascii=False)
-            output.write("\n")
+        # Binary mode: text mode would write CRLF and the locale encoding on Windows.
+        with os.fdopen(descriptor, "wb") as output:
+            output.write(content)
         os.replace(temporary, path)
     finally:
         Path(temporary).unlink(missing_ok=True)
+
+
+def atomic_json(path, value):
+    atomic_bytes(path, json_bytes(value))
 
 
 def snapshot(content):

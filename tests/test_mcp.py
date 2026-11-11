@@ -65,6 +65,22 @@ class MCPTests(unittest.TestCase):
             code = invoke(self.source, arguments, "netmed example", output, errors)
         return code, output.getvalue(), errors.getvalue(), request
 
+    def test_snapshot_bytes_are_platform_independent(self):
+        # The digest covers UTF-8/LF bytes; text-mode writes broke it on Windows.
+        document = copy.deepcopy(DOCUMENT)
+        document["tools"][0]["description"] = "Look up a record (α → β)."
+        with patch("netmed.importers.mcp.exchange", return_value=document):
+            from netmed.importers.mcp import discover
+
+            reference = discover(self.source, "unicode", self.root)["mcp"]
+        content = Path(reference["schema"]).read_bytes()
+        self.assertNotIn(b"\r", content)
+        self.assertEqual(hashlib.sha256(content).hexdigest(), reference["sha256"])
+        snapshot = read_snapshot({"mcp": reference})
+        self.assertEqual(
+            snapshot["tools"][0]["description"], "Look up a record (α → β)."
+        )
+
     def test_help_and_search_use_snapshot_without_network(self):
         for args in ([], ["--help"], ["lookup", "--help"]):
             code, output, _, request = self.call(args)
