@@ -313,7 +313,11 @@ with w.saved_output() as output:
             self.assertEqual(metadata["imported_from"], "edges.json")
             self.assertIsNone(metadata["environment_id"])
             self.assertEqual(metadata["structure"]["length"], 2)
-            self.assertIn(directory, metadata["path"])
+            self.assertTrue(
+                Path(metadata["path"])
+                .resolve()
+                .is_relative_to(Path(directory).resolve())
+            )
             self.assertNotIn(str(source.parent), metadata["imported_from"])
             request = {
                 "objects_root": str(objects.directory_for()),
